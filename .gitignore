@@ -1,0 +1,12 @@
+# Python
+server/.venv/
+__pycache__/
+*.pyc
+
+# Node
+web/node_modules/
+web/dist/
+web/tsconfig.tsbuildinfo
+
+# OS
+.DS_Store
