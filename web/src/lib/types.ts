@@ -1,4 +1,4 @@
-export type ModelKey = "qwen2_5_vl" | "llava_1_5";
+export type ModelKey = "qwen2_5_vl" | "llava_1_5" | "gemma4";
 export type MethodKey = "hiprune" | "hydart";
 
 export interface ModelInfo {
@@ -20,6 +20,12 @@ export const MODELS: ModelInfo[] = [
     label: "LLaVA-1.5-7B",
     hfId: "llava-hf/llava-1.5-7b-hf",
     defaultObjectLayer: 9,
+  },
+  {
+    key: "gemma4",
+    label: "Gemma 4 E4B",
+    hfId: "google/gemma-4-e4b-it",
+    defaultObjectLayer: 8,
   },
 ];
 

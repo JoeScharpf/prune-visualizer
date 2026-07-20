@@ -55,6 +55,7 @@ SSH_OPTS = [
 REMOTE_DIR = os.environ.get("HIPRUNE_REMOTE_DIR", "~/hiprune")
 QWEN_PORT = 8124
 LLAVA_PORT = 8125
+GEMMA_PORT = 8126
 GPU_INDEX = int(os.environ.get("HIPRUNE_GPU_INDEX", "0"))
 
 HOST_LABEL = "GPU host" if HOST_MODE == "local" else SSH_HOST.split("@")[-1]
@@ -72,9 +73,15 @@ MODELS = {
         "log": "serve_visualizer_llava.log",
         "max_model_len": 4096,
     },
+    "gemma4": {
+        "hf_id": "google/gemma-4-e4b-it",
+        "port": GEMMA_PORT,
+        "log": "serve_visualizer_gemma.log",
+        "max_model_len": 8192,
+    },
 }
 
-ModelKey = Literal["qwen2_5_vl", "llava_1_5"]
+ModelKey = Literal["qwen2_5_vl", "llava_1_5", "gemma4"]
 MethodKey = Literal["hiprune", "hydart"]
 
 
@@ -145,6 +152,7 @@ def ensure_tunnel() -> None:
                 "-o", "ExitOnForwardFailure=yes",
                 "-L", f"{QWEN_PORT}:localhost:{QWEN_PORT}",
                 "-L", f"{LLAVA_PORT}:localhost:{LLAVA_PORT}",
+                "-L", f"{GEMMA_PORT}:localhost:{GEMMA_PORT}",
                 SSH_HOST,
             ],
             stdout=subprocess.DEVNULL,
