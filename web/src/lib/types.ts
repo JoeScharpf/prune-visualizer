@@ -31,8 +31,6 @@ export const MODELS: ModelInfo[] = [
 
 export interface Params {
   retention: number;
-  alpha: number;
-  objectLayer: number; // 0 = model default
   maxNewTokens: number;
   lambdaSeed: number;
   lambdaPick: number;
@@ -41,8 +39,6 @@ export interface Params {
 
 export const DEFAULT_PARAMS: Params = {
   retention: 0.223,
-  alpha: 0.1,
-  objectLayer: 0,
   maxNewTokens: 128,
   lambdaSeed: 0.1,
   lambdaPick: 0.5,

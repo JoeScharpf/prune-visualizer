@@ -65,8 +65,6 @@ export async function infer(
         method,
         prompt: params.prompt,
         retention: params.retention,
-        alpha: params.alpha,
-        object_layer: params.objectLayer,
         max_new_tokens: params.maxNewTokens,
         lambda_seed: params.lambdaSeed,
         lambda_pick: params.lambdaPick,
