@@ -135,14 +135,18 @@ Deploying an update:
 
 ```bash
 # on the laptop: build the frontend and sync it up
-cd web && npm run build
+npm --prefix web run build
 rsync -az --delete web/dist/ <user>@<gpu-host>:~/hiprune/prune-visualizer/web/dist/
 
-# on the box: pull both repos and restart
+# on the box: pull both repos and restart the backend
 cd ~/hiprune/prune-visualizer && git pull
 cd ~/hiprune/vllm && git pull origin hydart-qwen2_5-vl
 systemctl --user restart prune-visualizer.service
 ```
+
+Note: restarting the service only restarts the backend. The model server
+is a separate detached `vllm serve` process, so fork changes take effect
+on the next Stop/Start GPU from the UI, not on service restart.
 
 ## Parameters
 
