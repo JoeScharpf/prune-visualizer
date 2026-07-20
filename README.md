@@ -42,8 +42,14 @@ npm run dev        # dev server on :5180, proxies /api to :8300
 npm run build      # production build served by the backend
 ```
 
-Set the GPU host in `server/app.py` (`SSH_HOST`, `REMOTE_DIR`); SSH key auth
-is required (`BatchMode=yes`).
+Deployment is configured with environment variables (see `server/app.py`):
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `HIPRUNE_HOST_MODE` | `ssh` | `ssh`: backend on a laptop, GPU reached over SSH with port forwarding. `local`: backend runs on the GPU machine and launches model servers directly |
+| `HIPRUNE_SSH_HOST` | `joe@safeai-gpu3.andrew.cmu.edu` | `user@host` of the GPU machine (ssh mode; key auth required, `BatchMode=yes`) |
+| `HIPRUNE_REMOTE_DIR` | `~/hiprune` | Directory on the GPU machine with `venv/`, `llava_venv/`, `llava_server.py` |
+| `HIPRUNE_GPU_INDEX` | `0` | Which physical GPU to use |
 
 ## Parameters
 

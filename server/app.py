@@ -1,15 +1,25 @@
 """HiPrune/HyDART visualizer backend.
 
-Runs locally on the Mac. Three jobs:
+Three jobs:
 
-1. GPU control: SSH into the CMU gpu3 server to launch/stop the model
-   servers (the vLLM fork for Qwen2.5-VL, the transformers wrapper for
-   LLaVA-1.5) and keep an SSH tunnel so the Mac can reach their ports.
+1. GPU control: launch/stop the model servers (the vLLM fork for
+   Qwen2.5-VL, the transformers wrapper for LLaVA-1.5). In ``ssh`` mode
+   the servers run on a remote GPU host reached over SSH, with an SSH
+   tunnel forwarding their ports; in ``local`` mode this backend runs on
+   the GPU machine itself and launches them directly.
 2. Inference proxy: forward an image + prompt + pruning params to the
    right server and normalize both response shapes into one.
 3. Static serving of the built frontend (visualizer/web/dist).
 
-Server-side facts this encodes (from the deployed fork on gpu3):
+Deployment config (environment variables):
+- HIPRUNE_HOST_MODE: "ssh" (default; backend on a laptop, GPU remote)
+  or "local" (backend on the GPU machine).
+- HIPRUNE_SSH_HOST: user@host of the GPU machine (ssh mode only).
+- HIPRUNE_REMOTE_DIR: directory on the GPU machine holding venv/,
+  llava_venv/, and llava_server.py (default ~/hiprune).
+- HIPRUNE_GPU_INDEX: which physical GPU to use (default 0).
+
+Server-side facts this encodes (from the deployed vLLM fork):
 - vLLM reads HIPRUNE_METHOD / HYDART_LAMBDA_SEED / HYDART_LAMBDA_PICK from
   the environment at startup, so method/lambda changes restart the server.
 - The retention ratio is per-request (`token_pruning` chat-completions
@@ -24,6 +34,8 @@ Usage:
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import threading
 import time
@@ -33,18 +45,21 @@ from typing import Any, Literal
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-SSH_HOST = "joe@safeai-gpu3.andrew.cmu.edu"
+HOST_MODE = os.environ.get("HIPRUNE_HOST_MODE", "ssh")  # "ssh" | "local"
+SSH_HOST = os.environ.get("HIPRUNE_SSH_HOST", "joe@safeai-gpu3.andrew.cmu.edu")
 SSH_OPTS = [
     "-o", "BatchMode=yes",
     "-o", "ConnectTimeout=10",
     "-o", "ServerAliveInterval=15",
 ]
-REMOTE_DIR = "~/hiprune"
+REMOTE_DIR = os.environ.get("HIPRUNE_REMOTE_DIR", "~/hiprune")
 QWEN_PORT = 8124
 LLAVA_PORT = 8125
-GPU_INDEX = 0  # A6000 with 48 GB
+GPU_INDEX = int(os.environ.get("HIPRUNE_GPU_INDEX", "0"))
+
+HOST_LABEL = "GPU host" if HOST_MODE == "local" else SSH_HOST.split("@")[-1]
 
 MODELS = {
     "qwen2_5_vl": {
@@ -75,10 +90,10 @@ class InferRequest(BaseModel):
     model: ModelKey
     method: MethodKey
     prompt: str
-    retention: float = 0.223
+    retention: float = Field(default=0.223, ge=0.01, le=1.0)
     alpha: float = 0.1
     object_layer: int = 0
-    max_new_tokens: int = 128
+    max_new_tokens: int = Field(default=128, ge=1, le=512)
     lambda_seed: float = 0.1
     lambda_pick: float = 0.5
     with_baseline: bool = False
@@ -102,8 +117,14 @@ app = FastAPI(title="HiPrune Visualizer")
 
 
 def ssh_run(command: str, timeout: int = 30) -> subprocess.CompletedProcess:
+    """Run a shell command on the GPU host (over SSH, or directly in
+    local mode)."""
+    if HOST_MODE == "local":
+        argv = ["bash", "-c", command]
+    else:
+        argv = ["ssh", *SSH_OPTS, SSH_HOST, command]
     return subprocess.run(
-        ["ssh", *SSH_OPTS, SSH_HOST, command],
+        argv,
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -111,7 +132,10 @@ def ssh_run(command: str, timeout: int = 30) -> subprocess.CompletedProcess:
 
 
 def ensure_tunnel() -> None:
-    """Keep one ssh -N -L process forwarding both model ports."""
+    """Keep one ssh -N -L process forwarding both model ports. No-op in
+    local mode: the model servers are already on localhost."""
+    if HOST_MODE == "local":
+        return
     with STATE.lock:
         if STATE.tunnel is not None and STATE.tunnel.poll() is None:
             return
@@ -129,6 +153,8 @@ def ensure_tunnel() -> None:
 
 
 def drop_tunnel() -> None:
+    if HOST_MODE == "local":
+        return
     with STATE.lock:
         if STATE.tunnel is not None:
             STATE.tunnel.terminate()
@@ -203,10 +229,15 @@ def stop_all_remote() -> None:
 
 
 def deploy_llava_wrapper() -> None:
-    """scp the wrapper next to the venvs on gpu3 (idempotent)."""
+    """Put the wrapper next to the venvs on the GPU host (idempotent)."""
     src = Path(__file__).parent / "llava_server.py"
+    if HOST_MODE == "local":
+        dest = Path(os.path.expanduser(REMOTE_DIR)) / "llava_server.py"
+        if src.resolve() != dest.resolve():
+            shutil.copy(src, dest)
+        return
     subprocess.run(
-        ["scp", *SSH_OPTS, str(src), f"{SSH_HOST}:hiprune/llava_server.py"],
+        ["scp", *SSH_OPTS, str(src), f"{SSH_HOST}:{REMOTE_DIR.removeprefix('~/')}/llava_server.py"],
         check=True,
         capture_output=True,
         timeout=30,
@@ -241,7 +272,7 @@ async def gpu_start(req: StartRequest) -> dict[str, Any]:
         STATE.phase = "starting"
         STATE.model = req.model
         STATE.method = req.method
-        STATE.detail = "launching on gpu3 (first start downloads weights)"
+        STATE.detail = f"launching on {HOST_LABEL} (first start downloads weights)"
     try:
         stop_all_remote()
         if req.model == "llava_1_5":

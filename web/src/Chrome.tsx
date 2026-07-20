@@ -28,7 +28,7 @@ export function Footer() {
     >
       <div className="container-1312 site-footer-row flex items-center justify-between">
         <span>HiPrune / HyDART token pruning visualizer</span>
-        <span className="font-mono">safeai-gpu3.andrew.cmu.edu</span>
+        <span className="font-mono">Overshoot</span>
       </div>
     </footer>
   );
