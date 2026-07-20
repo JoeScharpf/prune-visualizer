@@ -2,30 +2,29 @@
 
 Three jobs:
 
-1. GPU control: launch/stop the model servers (the vLLM fork for
-   Qwen2.5-VL, the transformers wrapper for LLaVA-1.5). In ``ssh`` mode
-   the servers run on a remote GPU host reached over SSH, with an SSH
-   tunnel forwarding their ports; in ``local`` mode this backend runs on
-   the GPU machine itself and launches them directly.
+1. GPU control: launch/stop the model server (the vLLM fork serves both
+   Qwen2.5-VL and LLaVA-1.5). In ``ssh`` mode the server runs on a
+   remote GPU host reached over SSH, with an SSH tunnel forwarding its
+   port; in ``local`` mode this backend runs on the GPU machine itself
+   and launches it directly.
 2. Inference proxy: forward an image + prompt + pruning params to the
-   right server and normalize both response shapes into one.
+   model server (OpenAI-compatible chat completions for both models).
 3. Static serving of the built frontend (visualizer/web/dist).
 
 Deployment config (environment variables):
 - HIPRUNE_HOST_MODE: "ssh" (default; backend on a laptop, GPU remote)
   or "local" (backend on the GPU machine).
 - HIPRUNE_SSH_HOST: user@host of the GPU machine (ssh mode only).
-- HIPRUNE_REMOTE_DIR: directory on the GPU machine holding venv/,
-  llava_venv/, and llava_server.py (default ~/hiprune).
+- HIPRUNE_REMOTE_DIR: directory on the GPU machine holding venv/ and the
+  vLLM fork (default ~/hiprune).
 - HIPRUNE_GPU_INDEX: which physical GPU to use (default 0).
 
 Server-side facts this encodes (from the deployed vLLM fork):
 - vLLM reads HIPRUNE_METHOD / HYDART_LAMBDA_SEED / HYDART_LAMBDA_PICK from
   the environment at startup, so method/lambda changes restart the server.
 - The retention ratio is per-request (`token_pruning` chat-completions
-  field). Alpha and object layer are compile-time constants in the fork,
-  so for Qwen they are display-only; the LLaVA wrapper honors them
-  per-request.
+  field). Alpha and object layer are constants in the fork (paper
+  defaults per model), so they are display-only in the UI.
 
 Usage:
     pip install -r requirements.txt
@@ -35,7 +34,6 @@ Usage:
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import threading
 import time
@@ -66,11 +64,13 @@ MODELS = {
         "hf_id": "Qwen/Qwen2.5-VL-3B-Instruct",
         "port": QWEN_PORT,
         "log": "serve_visualizer_qwen.log",
+        "max_model_len": 32768,
     },
     "llava_1_5": {
-        "hf_id": "liuhaotian/llava-v1.5-7b",
+        "hf_id": "llava-hf/llava-1.5-7b-hf",
         "port": LLAVA_PORT,
         "log": "serve_visualizer_llava.log",
+        "max_model_len": 4096,
     },
 }
 
@@ -195,20 +195,14 @@ def launch_command(req: StartRequest) -> str:
         f"HYDART_LAMBDA_PICK={req.lambda_pick} "
         "VLLM_USE_V2_MODEL_RUNNER=0 VLLM_USE_FLASHINFER_SAMPLER=0"
     )
-    if req.model == "qwen2_5_vl":
-        cfg = MODELS["qwen2_5_vl"]
-        script = (
-            f"cd {REMOTE_DIR} && source venv/bin/activate && "
-            f"{env} exec vllm serve {cfg['hf_id']} --max-model-len 32768 "
-            f"--enable-hiprune --enable-per-request-metrics "
-            f"--gpu-memory-utilization 0.85 --port {cfg['port']}"
-        )
-    else:
-        cfg = MODELS["llava_1_5"]
-        script = (
-            f"cd {REMOTE_DIR} && source llava_venv/bin/activate && "
-            f"{env} exec python llava_server.py --port {cfg['port']}"
-        )
+    cfg = MODELS[req.model]
+    script = (
+        f"cd {REMOTE_DIR} && source venv/bin/activate && "
+        f"{env} exec vllm serve {cfg['hf_id']} "
+        f"--max-model-len {cfg['max_model_len']} "
+        f"--enable-hiprune --enable-per-request-metrics "
+        f"--gpu-memory-utilization 0.85 --port {cfg['port']}"
+    )
     return (
         f"nohup bash -c '{script}' > {REMOTE_DIR}/{cfg['log']} 2>&1 < /dev/null & "
         "echo LAUNCHED"
@@ -216,30 +210,15 @@ def launch_command(req: StartRequest) -> str:
 
 
 def stop_all_remote() -> None:
-    # Only touches processes owned by the joe account. The bracketed
-    # first letter keeps pkill -f from matching the shell that is
-    # executing this very command string.
+    # Only touches processes owned by our account. The bracketed first
+    # letter keeps pkill -f from matching the shell that is executing
+    # this very command string. llava_server.py is the retired
+    # transformers wrapper; still killed for cleanup on old deployments.
     ssh_run(
         "pkill -u \"$(id -u)\" -f '[v]llm serve' ; "
         "pkill -u \"$(id -u)\" -f '[l]lava_server.py' ; "
         "sleep 3 ; "
         "pkill -9 -u \"$(id -u)\" -f '[v]llm serve|[E]ngineCore|[l]lava_server.py' ; true",
-        timeout=30,
-    )
-
-
-def deploy_llava_wrapper() -> None:
-    """Put the wrapper next to the venvs on the GPU host (idempotent)."""
-    src = Path(__file__).parent / "llava_server.py"
-    if HOST_MODE == "local":
-        dest = Path(os.path.expanduser(REMOTE_DIR)) / "llava_server.py"
-        if src.resolve() != dest.resolve():
-            shutil.copy(src, dest)
-        return
-    subprocess.run(
-        ["scp", *SSH_OPTS, str(src), f"{SSH_HOST}:{REMOTE_DIR.removeprefix('~/')}/llava_server.py"],
-        check=True,
-        capture_output=True,
         timeout=30,
     )
 
@@ -275,8 +254,6 @@ async def gpu_start(req: StartRequest) -> dict[str, Any]:
         STATE.detail = f"launching on {HOST_LABEL} (first start downloads weights)"
     try:
         stop_all_remote()
-        if req.model == "llava_1_5":
-            deploy_llava_wrapper()
         res = ssh_run(launch_command(req), timeout=60)
         if res.returncode != 0 or "LAUNCHED" not in res.stdout:
             raise RuntimeError(res.stderr.strip() or res.stdout.strip() or "launch failed")
@@ -307,7 +284,7 @@ async def gpu_stop() -> dict[str, Any]:
 
 def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
     body: dict[str, Any] = {
-        "model": MODELS["qwen2_5_vl"]["hf_id"],
+        "model": MODELS[req.model]["hf_id"],
         "messages": [
             {
                 "role": "user",
@@ -325,8 +302,9 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
     return body
 
 
-async def infer_qwen(req: InferRequest) -> dict[str, Any]:
-    url = f"http://localhost:{QWEN_PORT}/v1/chat/completions"
+async def infer_vllm(req: InferRequest) -> dict[str, Any]:
+    port = MODELS[req.model]["port"]
+    url = f"http://localhost:{port}/v1/chat/completions"
     async with httpx.AsyncClient(timeout=300.0) as client:
         t0 = time.perf_counter()
         r = await client.post(url, json=chat_completion_body(req, pruned=True))
@@ -363,48 +341,12 @@ async def infer_qwen(req: InferRequest) -> dict[str, Any]:
     }
 
 
-async def infer_llava(req: InferRequest) -> dict[str, Any]:
-    url = f"http://localhost:{LLAVA_PORT}/generate"
-    payload = {
-        "image": req.image,
-        "prompt": req.prompt,
-        "method": req.method,
-        "retention": req.retention,
-        "alpha": req.alpha,
-        "object_layer": req.object_layer,
-        "max_new_tokens": req.max_new_tokens,
-        "lambda_seed": req.lambda_seed,
-        "lambda_pick": req.lambda_pick,
-        "with_baseline": req.with_baseline,
-    }
-    async with httpx.AsyncClient(timeout=600.0) as client:
-        t0 = time.perf_counter()
-        r = await client.post(url, json=payload)
-        elapsed = time.perf_counter() - t0
-    if r.status_code != 200:
-        raise HTTPException(502, f"LLaVA wrapper error {r.status_code}: {r.text[:500]}")
-    resp = r.json()
-    metadata = (resp.get("token_pruning_metadata") or [None])[0]
-    return {
-        "answer": resp["answer"],
-        "usage": resp.get("usage"),
-        "metadata": metadata,
-        "baseline_answer": resp.get("baseline_answer"),
-        "baseline_prompt_tokens": resp.get("baseline_prompt_tokens"),
-        "elapsed_s": elapsed,
-        "ttft_ms": resp.get("ttft_ms"),
-        "baseline_ttft_ms": resp.get("baseline_ttft_ms"),
-    }
-
-
 @app.post("/api/infer")
 async def infer(req: InferRequest) -> dict[str, Any]:
     ensure_tunnel()
     if not await probe_health(req.model):
         raise HTTPException(503, "Model server is not ready — start the GPU first")
-    if req.model == "qwen2_5_vl":
-        return await infer_qwen(req)
-    return await infer_llava(req)
+    return await infer_vllm(req)
 
 
 # Serve the built frontend if present (`npm run build` in visualizer/web).

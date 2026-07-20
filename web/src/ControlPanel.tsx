@@ -201,26 +201,25 @@ export default function ControlPanel({
         />
       </Field>
 
+      {/* Alpha and the object layer are paper defaults baked into the
+          vLLM fork at serve time, so they are shown but not editable. */}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Alpha">
+        <Field label="Alpha" hint="paper default">
           <input
             type="number"
-            className={numInput}
-            step={0.05}
-            min={0}
-            max={1}
-            value={params.alpha}
-            onChange={(e) => set({ alpha: Number(e.target.value) })}
+            className={numInput + " opacity-60 cursor-not-allowed"}
+            value={0.1}
+            disabled
+            readOnly
           />
         </Field>
-        <Field label="Object layer" hint={`0 = ${modelInfo.defaultObjectLayer}`}>
+        <Field label="Object layer" hint="paper default">
           <input
             type="number"
-            className={numInput}
-            step={1}
-            min={0}
-            value={params.objectLayer}
-            onChange={(e) => set({ objectLayer: Number(e.target.value) })}
+            className={numInput + " opacity-60 cursor-not-allowed"}
+            value={modelInfo.defaultObjectLayer}
+            disabled
+            readOnly
           />
         </Field>
       </div>

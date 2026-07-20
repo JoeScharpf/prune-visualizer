@@ -18,7 +18,7 @@ export const MODELS: ModelInfo[] = [
   {
     key: "llava_1_5",
     label: "LLaVA-1.5-7B",
-    hfId: "liuhaotian/llava-v1.5-7b",
+    hfId: "llava-hf/llava-1.5-7b-hf",
     defaultObjectLayer: 9,
   },
 ];

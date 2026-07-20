@@ -16,16 +16,16 @@ web/       Vite + React + Tailwind frontend
 server/    FastAPI backend (runs locally)
   app.py          GPU control (start/stop over SSH), inference proxy,
                   static serving of the built frontend
-  llava_server.py LLaVA-1.5 wrapper — deployed to and run on the GPU host
+  llava_server.py Retired transformers-based LLaVA wrapper, kept as the
+                  reference implementation (no longer deployed)
 ```
 
-- **Qwen2.5-VL** is served by a vLLM fork with HiPrune/HyDART built in
-  (`token_pruning` + `token_pruning_metadata` on the OpenAI-compatible
-  chat-completions API).
-- **LLaVA-1.5** is served by `llava_server.py`, a thin FastAPI wrapper that
-  mirrors the same response shape.
-- The local backend starts/stops the remote model servers over SSH and
-  reaches them through SSH port forwarding.
+- **Both models** (Qwen2.5-VL-3B and LLaVA-1.5-7B, `llava-hf` checkpoint)
+  are served by a vLLM fork with HiPrune/HyDART built in (`token_pruning`
+  + `token_pruning_metadata` on the OpenAI-compatible chat-completions
+  API).
+- The local backend starts/stops the remote model server over SSH and
+  reaches it through SSH port forwarding.
 
 ## Running
 
@@ -51,17 +51,17 @@ Deployment is configured with environment variables (see `server/app.py`):
 | --- | --- | --- |
 | `HIPRUNE_HOST_MODE` | `ssh` | `ssh`: backend on a laptop, GPU reached over SSH with port forwarding. `local`: backend runs on the GPU machine and launches model servers directly |
 | `HIPRUNE_SSH_HOST` | `joe@safeai-gpu3.andrew.cmu.edu` | `user@host` of the GPU machine (ssh mode; key auth required, `BatchMode=yes`) |
-| `HIPRUNE_REMOTE_DIR` | `~/hiprune` | Directory on the GPU machine with `venv/`, `llava_venv/`, `llava_server.py` |
+| `HIPRUNE_REMOTE_DIR` | `~/hiprune` | Directory on the GPU machine with `venv/` (the vLLM fork install) |
 | `HIPRUNE_GPU_INDEX` | `0` | Which physical GPU to use |
 
 ## Parameters
 
 | Parameter | Meaning |
 | --- | --- |
-| Retention | Fraction of visual tokens kept after pruning |
-| Alpha | HiPrune anchor budget fraction (anchors + neighbor buffers) |
-| Object layer | Vision-encoder layer used for object-level attention |
-| Lambda seed / pick | HyDART greedy-MMR trade-off between attention and diversity |
+| Retention | Fraction of visual tokens kept after pruning (per request) |
+| Alpha | HiPrune anchor budget fraction — paper default, fixed at serve time |
+| Object layer | Vision-encoder layer for object-level attention — paper default per model (16 for Qwen, 9 for LLaVA), fixed at serve time |
+| Lambda seed / pick | HyDART greedy-MMR trade-off — applied when the GPU is started |
 
 Hovering a patch in the pruned view shows its token index, grid position,
 category (anchor / buffer / register / diverse / pruned), rank within its

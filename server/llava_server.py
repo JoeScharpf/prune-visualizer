@@ -1,4 +1,8 @@
-"""LLaVA-1.5 HiPrune/HyDART server for the visualizer (runs on gpu3).
+"""RETIRED: transformers-based LLaVA-1.5 HiPrune/HyDART server.
+
+LLaVA is now served by the vLLM fork (llava-hf/llava-1.5-7b-hf with
+--enable-hiprune), same as Qwen. This wrapper is kept as the reference
+implementation the vLLM port was differential-tested against.
 
 Wraps the HiPrune authors' LLaVA fork (cloned to ~/hiprune/HiPrune,
 pinned commit) behind one HTTP endpoint with the same response shape as

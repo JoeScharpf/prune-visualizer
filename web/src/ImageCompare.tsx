@@ -8,9 +8,6 @@ const REGISTER = "rgb(50,255,80)";
 const DIVERSE = "rgb(70,140,255)";
 const PRUNED_FILL = "rgba(0,0,0,0.82)";
 
-/** CLIP image mean, the pad color LLaVA's square-pad preprocessing uses. */
-const CLIP_PAD = "rgb(122,116,104)";
-
 function thirdCategory(md: PruningMetadata): {
   name: string;
   indices: number[];
@@ -23,9 +20,9 @@ function thirdCategory(md: PruningMetadata): {
 }
 
 /** Draw the uploaded image the way the model's preprocessor sees it:
- * LLaVA square-pads with the CLIP mean color; Qwen resizes to the grid's
- * aspect (its 28px-multiple resize is close enough to a plain stretch for
- * visualization). */
+ * LLaVA (llava-hf) resizes the shortest edge to 336 then center-crops a
+ * square; Qwen resizes to the grid's aspect (its 28px-multiple resize is
+ * close enough to a plain stretch for visualization). */
 function drawBase(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -34,12 +31,10 @@ function drawBase(
   model: ModelKey
 ) {
   if (model === "llava_1_5") {
-    ctx.fillStyle = CLIP_PAD;
-    ctx.fillRect(0, 0, w, h);
-    const side = Math.max(img.width, img.height);
-    const dw = (img.width / side) * w;
-    const dh = (img.height / side) * h;
-    ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    const side = Math.min(img.width, img.height);
+    const sx = (img.width - side) / 2;
+    const sy = (img.height - side) / 2;
+    ctx.drawImage(img, sx, sy, side, side, 0, 0, w, h);
   } else {
     ctx.drawImage(img, 0, 0, w, h);
   }
