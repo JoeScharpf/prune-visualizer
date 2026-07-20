@@ -110,6 +110,9 @@ function Results({
 }) {
   const md = result.metadata;
   const kept = md ? md.num_tokens - md.pruned.length : null;
+  // Actual pruned share from metadata (the kept count is rounded, so
+  // this can differ slightly from the requested retention slider).
+  const prunedPct = md ? (100 * md.pruned.length) / md.num_tokens : null;
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -193,7 +196,13 @@ function Results({
             className="border border-border bg-white p-4 flex flex-col gap-2"
             style={{ borderRadius: "var(--r-1)" }}
           >
-            <span className="demo-kicker text-fg-muted">Baseline answer (no pruning)</span>
+            <span className="demo-kicker text-fg-muted">
+              Baseline answer
+              {" (unpruned"}
+              {result.baseline_ttft_ms != null &&
+                ` · TTFT ${result.baseline_ttft_ms.toFixed(0)} ms`}
+              {")"}
+            </span>
             <AnswerText text={result.baseline_answer} />
           </div>
         )}
@@ -203,6 +212,15 @@ function Results({
         >
           <span className="demo-kicker text-fg-muted">
             {result.baseline_answer != null ? "Pruned answer" : "Answer"}
+            {(prunedPct != null || result.ttft_ms != null) && (
+              <>
+                {" ("}
+                {prunedPct != null && `${prunedPct.toFixed(1)}% pruned`}
+                {prunedPct != null && result.ttft_ms != null && " · "}
+                {result.ttft_ms != null && `TTFT ${result.ttft_ms.toFixed(0)} ms`}
+                {")"}
+              </>
+            )}
           </span>
           <AnswerText text={result.answer} />
         </div>
