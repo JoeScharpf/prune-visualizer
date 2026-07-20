@@ -133,6 +133,7 @@ export default function ControlPanel({
   const running = gpu.phase === "ready" || gpu.phase === "starting";
   const restartNeeded =
     gpu.phase === "ready" && (gpu.model !== model || gpu.method !== method);
+  const modelInfo = MODELS.find((m) => m.key === model)!;
 
   return (
     <aside
@@ -199,6 +200,29 @@ export default function ControlPanel({
           onChange={(e) => set({ retention: Number(e.target.value) })}
         />
       </Field>
+
+      {/* Alpha and the object layer are fixed at serve time in the vLLM
+          fork, so they are shown but not editable. */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Alpha">
+          <input
+            type="number"
+            className={numInput + " opacity-60 cursor-not-allowed"}
+            value={0.1}
+            disabled
+            readOnly
+          />
+        </Field>
+        <Field label="Object layer">
+          <input
+            type="number"
+            className={numInput + " opacity-60 cursor-not-allowed"}
+            value={modelInfo.defaultObjectLayer}
+            disabled
+            readOnly
+          />
+        </Field>
+      </div>
 
       {method === "hydart" && (
         <div className="grid grid-cols-2 gap-3">

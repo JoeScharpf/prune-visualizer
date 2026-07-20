@@ -151,11 +151,9 @@ on the next Stop/Start GPU from the UI, not on service restart.
 | Parameter | Meaning |
 | --- | --- |
 | Retention | Fraction of visual tokens kept after pruning (per request) |
+| Alpha | HiPrune anchor budget fraction — fixed at serve time, shown read-only |
+| Object layer | Vision-encoder layer for object-level attention (16 for Qwen, 9 for LLaVA, 8 for Gemma) — fixed at serve time, shown read-only |
 | Lambda seed / pick | HyDART greedy-MMR trade-off — applied when the GPU is started |
-
-Alpha (the HiPrune anchor budget fraction) and the object layer are paper
-defaults fixed at serve time in the vLLM fork (object layer 16 for Qwen,
-9 for LLaVA, 8 for Gemma), so they are not exposed in the UI.
 
 Hovering a patch in the pruned view shows its token index, grid position,
 category (anchor / buffer / register / diverse / pruned), rank within its
