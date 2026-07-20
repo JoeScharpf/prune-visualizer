@@ -6,6 +6,9 @@ method, tune the parameters, and see the original image next to the pruned
 token grid — with per-patch hover tooltips showing each token's category,
 rank, and attention scores.
 
+<img width="1406" height="496" alt="Screenshot 2026-07-20 at 10 11 38 AM" src="https://github.com/user-attachments/assets/4455ab05-5c39-4343-a180-dcb37eba5e4b" />
+
+
 ## Architecture
 
 ```
