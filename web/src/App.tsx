@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Footer, Nav } from "./Chrome";
 import ControlPanel from "./ControlPanel";
 import { OverlayCanvas, OverlayLegend } from "./ImageCompare";
@@ -82,6 +84,17 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="flex flex-col gap-1">
       <span className="demo-label text-fg-muted">{label}</span>
       <span className="font-mono text-sm text-fg">{value}</span>
+    </div>
+  );
+}
+
+/** Model answers arrive as markdown (Gemma especially); render it
+ * instead of showing literal asterisks. react-markdown builds real DOM
+ * nodes, so untrusted model output is safe without sanitization. */
+function AnswerText({ text }: { text: string }) {
+  return (
+    <div className="answer-md text-sm text-fg">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
     </div>
   );
 }
@@ -181,7 +194,7 @@ function Results({
             style={{ borderRadius: "var(--r-1)" }}
           >
             <span className="demo-kicker text-fg-muted">Baseline answer (no pruning)</span>
-            <p className="text-sm text-fg whitespace-pre-wrap">{result.baseline_answer}</p>
+            <AnswerText text={result.baseline_answer} />
           </div>
         )}
         <div
@@ -191,7 +204,7 @@ function Results({
           <span className="demo-kicker text-fg-muted">
             {result.baseline_answer != null ? "Pruned answer" : "Answer"}
           </span>
-          <p className="text-sm text-fg whitespace-pre-wrap">{result.answer}</p>
+          <AnswerText text={result.answer} />
         </div>
       </div>
     </div>
