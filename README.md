@@ -131,18 +131,16 @@ WantedBy=default.target
 Enable both with `systemctl --user enable --now prune-visualizer ngrok-tunnel`
 (and `loginctl enable-linger <user>` so they survive logout).
 
-Deploying an update:
+Deploying an update — one command from the repo root (reads the host
+from `deploy.env`, `OVERSHOOT_SSH=user@host`):
 
 ```bash
-# on the laptop: build the frontend and sync it up
-npm --prefix web run build
-rsync -az --delete web/dist/ <user>@<gpu-host>:~/hiprune/prune-visualizer/web/dist/
-
-# on the box: pull both repos and restart the backend
-cd ~/hiprune/prune-visualizer && git pull
-cd ~/hiprune/vllm && git pull origin hydart-qwen2_5-vl
-systemctl --user restart prune-visualizer.service
+./deploy.sh
 ```
+
+It builds the frontend, rsyncs `web/dist/`, pulls the repo on the box,
+and restarts the backend. Fork (vLLM) changes are separate: pull
+`~/hiprune/vllm` on the box (`git pull origin hydart-qwen2_5-vl`).
 
 Note: restarting the service only restarts the backend. The model server
 is a separate detached `vllm serve` process, so fork changes take effect
