@@ -339,7 +339,16 @@ export default function ControlPanel({
         </div>
       </Disclosure>
 
-      <Field label="Prompt">
+      <Field
+        label="Prompt"
+        hint={
+          method === "hiprune_pp"
+            ? "HiPrune++ is prompt-aware"
+            : method === "hydart"
+              ? "HyDART is NOT prompt-aware"
+              : "HiPrune is NOT prompt-aware"
+        }
+      >
         <textarea
           className="w-full border border-border bg-white p-2.5 text-sm text-fg focus:border-stone-400 focus:outline-none resize-y"
           rows={3}
