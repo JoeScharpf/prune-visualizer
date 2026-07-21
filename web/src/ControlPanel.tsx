@@ -119,6 +119,10 @@ function GpuChip({ status }: { status: GpuStatus }) {
           ? "#dc2626"
           : "#a8a29e";
   const anySleeping = MODELS.some((m) => models[m.key] === "sleeping");
+  const stoppedCount = MODELS.filter((m) => {
+    const p = models[m.key];
+    return p === "sleeping" || p === "stopped";
+  }).length;
   const label =
     phase === "ready"
       ? readyCount === total
@@ -127,7 +131,7 @@ function GpuChip({ status }: { status: GpuStatus }) {
       : phase === "starting"
         ? `starting… ${readyCount}/${total} ready`
         : phase === "stopping"
-          ? "stopping…"
+          ? `stopping… ${stoppedCount}/${total}`
           : phase === "error"
             ? "error"
             : anySleeping
