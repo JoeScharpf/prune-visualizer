@@ -117,7 +117,7 @@ function GpuChip({ status }: { status: GpuStatus }) {
           : "#a8a29e";
   const label =
     phase === "ready"
-      ? `live — ${status.model ?? ""} / ${status.method ?? ""}`
+      ? `live — ${status.model ?? ""}`
       : phase === "starting"
         ? "starting…"
         : phase === "stopping"
@@ -175,8 +175,9 @@ export default function ControlPanel({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const gpuBusy = gpu.phase === "starting" || gpu.phase === "stopping";
   const running = gpu.phase === "ready" || gpu.phase === "starting";
-  const restartNeeded =
-    gpu.phase === "ready" && (gpu.model !== model || gpu.method !== method);
+  // The method and its knobs apply per request; only a model change
+  // requires relaunching the server.
+  const restartNeeded = gpu.phase === "ready" && gpu.model !== model;
   const modelInfo = MODELS.find((m) => m.key === model)!;
 
   return (
@@ -204,8 +205,8 @@ export default function ControlPanel({
       )}
       {restartNeeded && (
         <p className="text-xs text-fg-muted -mt-3">
-          The server is running {gpu.model} / {gpu.method}. Start GPU again to
-          switch to {model} / {method}.
+          The server is running {gpu.model}. Start GPU again to switch to{" "}
+          {model}.
         </p>
       )}
 
@@ -217,7 +218,14 @@ export default function ControlPanel({
         />
       </Field>
 
-      <Field label="Method">
+      <Field
+        label="Method"
+        hint={
+          gpu.phase === "ready" && gpu.model === model
+            ? "applies on next run"
+            : undefined
+        }
+      >
         <Select
           value={method}
           options={[

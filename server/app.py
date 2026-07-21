@@ -20,11 +20,11 @@ Deployment config (environment variables):
 - HIPRUNE_GPU_INDEX: which physical GPU to use (default 0).
 
 Server-side facts this encodes (from the deployed vLLM fork):
-- vLLM reads HIPRUNE_METHOD / HYDART_LAMBDA_SEED / HYDART_LAMBDA_PICK from
-  the environment at startup, so method/lambda changes restart the server.
-- The retention ratio is per-request (`token_pruning` chat-completions
-  field). Alpha and object layer are constants in the fork (paper
-  defaults per model), so they are display-only in the UI.
+- The method and its knobs are per-request (`token_pruning_method` /
+  `token_pruning_params` chat-completions fields), like the retention
+  ratio (`token_pruning`). Only a model change restarts the server.
+- Alpha and object layer are constants in the fork (paper defaults per
+  model), so they are display-only in the UI.
 
 Usage:
     pip install -r requirements.txt
@@ -86,13 +86,10 @@ MethodKey = Literal["hiprune", "hydart", "hiprune_pp", "dart"]
 
 
 class StartRequest(BaseModel):
+    """A GPU start is purely "load this model": the pruning method and
+    its knobs travel per inference request, not in the launch env."""
+
     model: ModelKey
-    method: MethodKey
-    lambda_seed: float = 0.1
-    lambda_pick: float = 0.5
-    beta: float = Field(default=0.1, ge=0.0, le=1.0)
-    pivot_image: int = Field(default=4, ge=1, le=64)
-    pivot_text: int = Field(default=4, ge=0, le=64)
 
 
 class InferRequest(BaseModel):
@@ -120,7 +117,6 @@ class GpuState:
         self.lock = threading.Lock()
         self.phase: str = "unknown"
         self.model: str | None = None
-        self.method: str | None = None
         self.detail: str = ""
         self.tunnel: subprocess.Popen | None = None
 
@@ -204,12 +200,6 @@ def launch_command(req: StartRequest) -> str:
     """
     env = (
         f"CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES={GPU_INDEX} "
-        f"HIPRUNE_METHOD={req.method} "
-        f"HYDART_LAMBDA_SEED={req.lambda_seed} "
-        f"HYDART_LAMBDA_PICK={req.lambda_pick} "
-        f"HIPRUNE_PP_BETA={req.beta} "
-        f"HIPRUNE_DART_PIVOT_IMAGE={req.pivot_image} "
-        f"HIPRUNE_DART_PIVOT_TEXT={req.pivot_text} "
         "VLLM_USE_V2_MODEL_RUNNER=0 VLLM_USE_FLASHINFER_SAMPLER=0"
     )
     cfg = MODELS[req.model]
@@ -243,7 +233,7 @@ def stop_all_remote() -> None:
 @app.get("/api/gpu/status")
 async def gpu_status() -> dict[str, Any]:
     with STATE.lock:
-        phase, model, method = STATE.phase, STATE.model, STATE.method
+        phase, model = STATE.phase, STATE.model
         detail = STATE.detail
     if phase in ("starting", "ready") and model is not None:
         ensure_tunnel()
@@ -257,7 +247,7 @@ async def gpu_status() -> dict[str, Any]:
             # progress instead of silently failing runs.
             phase = "starting"
             detail = "server not responding; waiting for it to come back"
-    return {"phase": phase, "model": model, "method": method, "detail": detail}
+    return {"phase": phase, "model": model, "detail": detail}
 
 
 @app.post("/api/gpu/start")
@@ -267,7 +257,6 @@ async def gpu_start(req: StartRequest) -> dict[str, Any]:
             raise HTTPException(409, "A server is already starting")
         STATE.phase = "starting"
         STATE.model = req.model
-        STATE.method = req.method
         STATE.detail = f"launching on {HOST_LABEL} (first start downloads weights)"
     try:
         stop_all_remote()
@@ -294,7 +283,6 @@ async def gpu_stop() -> dict[str, Any]:
         with STATE.lock:
             STATE.phase = "stopped"
             STATE.model = None
-            STATE.method = None
             STATE.detail = ""
     return await gpu_status()
 
@@ -316,6 +304,14 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
     }
     if pruned and req.retention < 1.0:
         body["token_pruning"] = req.retention
+        body["token_pruning_method"] = req.method
+        body["token_pruning_params"] = {
+            "lambda_seed": req.lambda_seed,
+            "lambda_pick": req.lambda_pick,
+            "beta": req.beta,
+            "pivot_image": req.pivot_image,
+            "pivot_text": req.pivot_text,
+        }
     return body
 
 

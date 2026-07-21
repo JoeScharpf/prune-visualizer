@@ -115,6 +115,5 @@ export type GpuPhase =
 export interface GpuStatus {
   phase: GpuPhase;
   model: ModelKey | null;
-  method: MethodKey | null;
   detail?: string;
 }
