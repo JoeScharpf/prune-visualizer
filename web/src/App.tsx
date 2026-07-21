@@ -302,11 +302,11 @@ export default function App() {
       <Nav />
       <main className="flex-1 flex flex-col" style={{ paddingTop: 60 }}>
         <div className="container-1312 w-full py-8">
+          <h1 className="h-display text-center mb-8" style={{ fontSize: 28 }}>
+            Visual token pruning, side by side
+          </h1>
           <div className="flex flex-col xl:flex-row gap-8 items-start">
             <section className="flex-1 w-full flex flex-col gap-5 min-w-0">
-              <h1 className="h-display" style={{ fontSize: 28 }}>
-                Visual token pruning, side by side
-              </h1>
               <DropZone onImage={(u) => setImageUrl(u)} hasImage={imageUrl != null} />
               {imageUrl && !result && (
                 <img
