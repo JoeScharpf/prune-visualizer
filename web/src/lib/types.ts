@@ -1,5 +1,5 @@
 export type ModelKey = "qwen2_5_vl" | "llava_1_5" | "gemma4";
-export type MethodKey = "hiprune" | "hydart";
+export type MethodKey = "hiprune" | "hydart" | "hiprune_pp";
 
 export interface ModelInfo {
   key: ModelKey;
@@ -34,6 +34,7 @@ export interface Params {
   maxNewTokens: number;
   lambdaSeed: number;
   lambdaPick: number;
+  beta: number;
   prompt: string;
 }
 
@@ -42,6 +43,7 @@ export const DEFAULT_PARAMS: Params = {
   maxNewTokens: 128,
   lambdaSeed: 0.1,
   lambdaPick: 0.5,
+  beta: 0.1,
   prompt: "Describe this image in detail.",
 };
 
@@ -59,15 +61,20 @@ export interface PruningMetadata {
   buffers: number[];
   registers?: number[];
   diverse?: number[];
+  /** HiPrune++ text-guided picks. */
+  prompt_tokens?: number[];
+  beta?: number;
   lambda_seed?: number;
   lambda_pick?: number;
   mean_attention?: Record<string, Record<string, number | null>>;
   similarity?: Record<string, number>;
+  text_similarity_summary?: Record<string, number | null>;
   /** Per-token arrays (index = soft-token index) for hover tooltips. */
   scores?: {
     object_layer?: number[];
     deep_layer?: number[];
     similarity?: number[];
+    text_similarity?: number[];
   };
 }
 

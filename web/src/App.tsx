@@ -127,7 +127,11 @@ function Results({
         </figure>
         <figure className="flex flex-col gap-2">
           <figcaption className="demo-kicker text-fg-muted">
-            {md?.method === "hydart" ? "HyDART" : "HiPrune"}
+            {md?.method === "hydart"
+              ? "HyDART"
+              : md?.method === "hiprune_pp"
+                ? "HiPrune++"
+                : "HiPrune"}
             {md &&
               ` — ${md.pruned.length}/${md.num_tokens} pruned, grid ${md.grid[0]}x${md.grid[1]}`}
           </figcaption>
@@ -270,7 +274,15 @@ export default function App() {
         setGpu(await stopGpu());
       } else {
         setGpu({ phase: "starting", model, method });
-        setGpu(await startGpu(model, method, params.lambdaSeed, params.lambdaPick));
+        setGpu(
+          await startGpu(
+            model,
+            method,
+            params.lambdaSeed,
+            params.lambdaPick,
+            params.beta
+          )
+        );
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

@@ -6,17 +6,36 @@ const ANCHOR = "rgb(255,60,60)";
 const BUFFER = "rgb(255,170,40)";
 const REGISTER = "rgb(50,255,80)";
 const DIVERSE = "rgb(70,140,255)";
+const PROMPT = "rgb(205,90,255)";
 const PRUNED_FILL = "rgba(0,0,0,0.82)";
 
-function thirdCategory(md: PruningMetadata): {
+interface Category {
   name: string;
   indices: number[];
   color: string;
-} {
+  /** Ordered categories report a rank in the tooltip (top-k / pick order). */
+  ranked: boolean;
+}
+
+/** Kept-token categories beyond anchors/buffers, per method. */
+function extraCategories(md: PruningMetadata): Category[] {
   if (md.method === "hydart" || md.diverse) {
-    return { name: "diverse", indices: md.diverse ?? [], color: DIVERSE };
+    return [
+      { name: "diverse", indices: md.diverse ?? [], color: DIVERSE, ranked: true },
+    ];
   }
-  return { name: "registers", indices: md.registers ?? [], color: REGISTER };
+  const cats: Category[] = [
+    { name: "registers", indices: md.registers ?? [], color: REGISTER, ranked: true },
+  ];
+  if (md.method === "hiprune_pp" || md.prompt_tokens) {
+    cats.push({
+      name: "prompt",
+      indices: md.prompt_tokens ?? [],
+      color: PROMPT,
+      ranked: true,
+    });
+  }
+  return cats;
 }
 
 /** Draw the uploaded image the way the model's preprocessor sees it:
@@ -52,16 +71,17 @@ interface CellInfo {
 /** index -> category/rank lookup for the tooltip. */
 function buildCellIndex(md: PruningMetadata): Map<number, CellInfo> {
   const map = new Map<number, CellInfo>();
-  const third = thirdCategory(md);
   const ordered: Array<[string, number[], string, boolean]> = [
     ["anchor", md.anchors, ANCHOR, true],
     ["buffer", md.buffers, BUFFER, false],
-    [
-      third.name === "registers" ? "register" : third.name,
-      third.indices,
-      third.color,
-      true,
-    ],
+    ...extraCategories(md).map(
+      (c): [string, number[], string, boolean] => [
+        c.name === "registers" ? "register" : c.name,
+        c.indices,
+        c.color,
+        c.ranked,
+      ]
+    ),
     ["pruned", md.pruned, "rgb(120,113,108)", false],
   ];
   for (const [category, indices, color, ranked] of ordered) {
@@ -125,11 +145,12 @@ export function OverlayCanvas({
         ctx.fillRect(x, y, cell, cell);
       }
 
-      const third = thirdCategory(metadata);
       const cats: Array<[number[], string]> = [
         [metadata.anchors, ANCHOR],
         [metadata.buffers, BUFFER],
-        [third.indices, third.color],
+        ...extraCategories(metadata).map(
+          (c): [number[], string] => [c.indices, c.color]
+        ),
       ];
       ctx.lineWidth = 2;
       for (const [indices, color] of cats) {
@@ -159,6 +180,9 @@ export function OverlayCanvas({
   const objScore = hover ? metadata.scores?.object_layer?.[hover.idx] : undefined;
   const deepScore = hover ? metadata.scores?.deep_layer?.[hover.idx] : undefined;
   const simScore = hover ? metadata.scores?.similarity?.[hover.idx] : undefined;
+  const textSimScore = hover
+    ? metadata.scores?.text_similarity?.[hover.idx]
+    : undefined;
   const hoverRow = hover ? Math.floor(hover.idx / gridW) : 0;
   const hoverCol = hover ? hover.idx % gridW : 0;
 
@@ -219,6 +243,11 @@ export function OverlayCanvas({
               max cos sim: {simScore.toFixed(3)}
             </span>
           )}
+          {textSimScore != null && (
+            <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
+              text cos sim: {textSimScore.toFixed(3)}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -226,11 +255,12 @@ export function OverlayCanvas({
 }
 
 export function OverlayLegend({ metadata }: { metadata: PruningMetadata }) {
-  const third = thirdCategory(metadata);
   const items: Array<[string, string, number]> = [
     ["anchors", ANCHOR, metadata.anchors.length],
     ["buffers", BUFFER, metadata.buffers.length],
-    [third.name, third.color, third.indices.length],
+    ...extraCategories(metadata).map(
+      (c): [string, string, number] => [c.name, c.color, c.indices.length]
+    ),
     ["pruned", "rgb(12,10,9)", metadata.pruned.length],
   ];
   return (
