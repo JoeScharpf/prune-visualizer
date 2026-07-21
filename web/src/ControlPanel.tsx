@@ -7,35 +7,41 @@ import type {
 } from "./lib/types";
 import { MODELS } from "./lib/types";
 
-function Chip({
-  active,
-  disabled,
-  onClick,
-  children,
+function Select<T extends string>({
+  value,
+  options,
+  onChange,
 }: {
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (v: T) => void;
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={
-        "btn-slide h-9 inline-flex items-center px-3.5 text-sm font-medium border " +
-        (active
-          ? "border-fg text-fg-invert"
-          : "border-border text-fg disabled:opacity-40 disabled:cursor-not-allowed")
-      }
-      style={{ background: active ? "#0C0A09" : "#FFFFFF" }}
-    >
-      {!active && (
-        <span aria-hidden className="btn-slide-fill" style={{ background: "#F3EFED" }} />
-      )}
-      <span className="btn-slide-content">{children}</span>
-    </button>
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        className={
+          "h-9 w-full appearance-none border border-border bg-white pl-2.5 " +
+          "pr-8 text-sm font-medium text-fg cursor-pointer " +
+          "focus:border-stone-400 focus:outline-none"
+        }
+        style={{ borderRadius: 0 }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-fg-muted"
+        style={{ fontSize: 10 }}
+      >
+        ▼
+      </span>
+    </div>
   );
 }
 
@@ -204,33 +210,24 @@ export default function ControlPanel({
       )}
 
       <Field label="Model">
-        <div className="flex flex-wrap gap-2">
-          {MODELS.map((m) => (
-            <Chip key={m.key} active={model === m.key} onClick={() => onModel(m.key)}>
-              {m.label}
-            </Chip>
-          ))}
-        </div>
+        <Select
+          value={model}
+          options={MODELS.map((m) => ({ value: m.key, label: m.label }))}
+          onChange={onModel}
+        />
       </Field>
 
       <Field label="Method">
-        <div className="flex flex-wrap gap-2">
-          <Chip active={method === "hiprune"} onClick={() => onMethod("hiprune")}>
-            HiPrune
-          </Chip>
-          <Chip active={method === "hydart"} onClick={() => onMethod("hydart")}>
-            HyDART
-          </Chip>
-          <Chip
-            active={method === "hiprune_pp"}
-            onClick={() => onMethod("hiprune_pp")}
-          >
-            HiPrune++
-          </Chip>
-          <Chip active={method === "dart"} onClick={() => onMethod("dart")}>
-            DART
-          </Chip>
-        </div>
+        <Select
+          value={method}
+          options={[
+            { value: "hiprune", label: "HiPrune" },
+            { value: "hydart", label: "HyDART" },
+            { value: "hiprune_pp", label: "HiPrune++" },
+            { value: "dart", label: "DART" },
+          ]}
+          onChange={onMethod}
+        />
       </Field>
 
       <Field
