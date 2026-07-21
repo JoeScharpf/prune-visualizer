@@ -247,7 +247,6 @@ export default function App() {
   const [gpu, setGpu] = useState<GpuStatus>({
     phase: "unknown",
     model: null,
-    method: null,
   });
 
   useEffect(() => {
@@ -257,7 +256,7 @@ export default function App() {
         const s = await getGpuStatus();
         if (alive) setGpu(s);
       } catch {
-        if (alive) setGpu({ phase: "unknown", model: null, method: null });
+        if (alive) setGpu({ phase: "unknown", model: null });
       }
     };
     poll();
@@ -275,18 +274,8 @@ export default function App() {
         setGpu({ ...gpu, phase: "stopping" });
         setGpu(await stopGpu());
       } else {
-        setGpu({ phase: "starting", model, method });
-        setGpu(
-          await startGpu(
-            model,
-            method,
-            params.lambdaSeed,
-            params.lambdaPick,
-            params.beta,
-            params.pivotImage,
-            params.pivotText
-          )
-        );
+        setGpu({ phase: "starting", model });
+        setGpu(await startGpu(model));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -306,8 +295,9 @@ export default function App() {
     }
   };
 
-  const serverMatches =
-    gpu.phase === "ready" && gpu.model === model && gpu.method === method;
+  // The method (and its knobs) apply per request, so only the model has
+  // to match the running server.
+  const serverMatches = gpu.phase === "ready" && gpu.model === model;
 
   return (
     <div className="min-h-screen flex flex-col">
