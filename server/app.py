@@ -101,7 +101,7 @@ MODELS = {
 }
 
 ModelKey = Literal["qwen2_5_vl", "llava_1_5", "gemma4"]
-MethodKey = Literal["hiprune", "hydart", "hiprune_pp", "dart"]
+MethodKey = Literal["hiprune", "hydart", "hiprune_pp", "dart", "nprune"]
 
 # Per-model cap on waiting for /health after a launch. Weights are
 # cached on the box after the first start, so a healthy load is a few
@@ -124,6 +124,8 @@ class InferRequest(BaseModel):
     beta: float = Field(default=0.1, ge=0.0, le=1.0)
     pivot_image: int = Field(default=4, ge=1, le=64)
     pivot_text: int = Field(default=4, ge=0, le=64)
+    # NPrune lattice stride (1 = keep everything, 2 = ~25% kept).
+    stride: int = Field(default=2, ge=1, le=2)
     with_baseline: bool = False
 
 
@@ -595,7 +597,20 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
         "max_tokens": req.max_new_tokens,
         "temperature": 0,
     }
-    if pruned and req.retention < 1.0:
+    if not pruned:
+        return body
+    if req.method == "nprune":
+        # NPrune ignores the retention slider: the keep count is the
+        # exact uniform-lattice count, a function of the grid shape and
+        # stride. token_pruning (nominal 1/stride^2) only activates the
+        # pruning pipeline. Stride 1 keeps every token — identical to
+        # no pruning — so skip the pipeline entirely.
+        if req.stride > 1:
+            body["token_pruning"] = 1.0 / (req.stride * req.stride)
+            body["token_pruning_method"] = "nprune"
+            body["token_pruning_params"] = {"stride": req.stride}
+        return body
+    if req.retention < 1.0:
         body["token_pruning"] = req.retention
         body["token_pruning_method"] = req.method
         body["token_pruning_params"] = {

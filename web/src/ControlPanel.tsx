@@ -246,25 +246,31 @@ export default function ControlPanel({
             { value: "hydart", label: "HyDART" },
             { value: "hiprune_pp", label: "HiPrune++" },
             { value: "dart", label: "DART" },
+            { value: "nprune", label: "NPrune (uniform)" },
           ]}
           onChange={onMethod}
         />
       </Field>
 
-      <Field
-        label="Retention ratio"
-        hint={`keep ${(params.retention * 100).toFixed(1)}%`}
-      >
-        <input
-          type="range"
-          className="hp-range"
-          min={0.05}
-          max={1}
-          step={0.005}
-          value={params.retention}
-          onChange={(e) => set({ retention: Number(e.target.value) })}
-        />
-      </Field>
+      {/* NPrune's keep count is stride-implied (uniform lattice), so the
+          retention slider does not apply; the stride select lives in
+          Advanced settings. */}
+      {method !== "nprune" && (
+        <Field
+          label="Retention ratio"
+          hint={`keep ${(params.retention * 100).toFixed(1)}%`}
+        >
+          <input
+            type="range"
+            className="hp-range"
+            min={0.05}
+            max={1}
+            step={0.005}
+            value={params.retention}
+            onChange={(e) => set({ retention: Number(e.target.value) })}
+          />
+        </Field>
+      )}
 
       <Disclosure
         label="Advanced settings"
@@ -274,8 +280,9 @@ export default function ControlPanel({
         <div className="flex flex-col gap-6">
           {/* Alpha and the object layer are fixed at serve time in the vLLM
               fork, so they are shown but not editable. DART uses neither
-              (its selection runs on LLM layer states). */}
-          {method !== "dart" && (
+              (its selection runs on LLM layer states); NPrune uses no
+              scores at all. */}
+          {method !== "dart" && method !== "nprune" && (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Alpha">
                 <input
@@ -342,6 +349,26 @@ export default function ControlPanel({
             </div>
           )}
 
+          {method === "nprune" && (
+            <Field
+              label="Stride"
+              hint={
+                params.stride === 1
+                  ? "keeps all tokens (no pruning)"
+                  : "keeps ~25% (1 of every 2x2 block)"
+              }
+            >
+              <Select
+                value={String(params.stride) as "1" | "2"}
+                options={[
+                  { value: "1", label: "1 — keep everything" },
+                  { value: "2", label: "2 — uniform lattice (~25%)" },
+                ]}
+                onChange={(v) => set({ stride: Number(v) })}
+              />
+            </Field>
+          )}
+
           {method === "hydart" && (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Lambda seed">
@@ -390,7 +417,9 @@ export default function ControlPanel({
               ? "DART is prompt-aware"
               : method === "hydart"
                 ? "HyDART is NOT prompt-aware"
-                : "HiPrune is NOT prompt-aware"
+                : method === "nprune"
+                  ? "NPrune is NOT prompt-aware"
+                  : "HiPrune is NOT prompt-aware"
         }
       >
         <textarea

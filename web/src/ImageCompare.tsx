@@ -8,6 +8,7 @@ const REGISTER = "rgb(50,255,80)";
 const DIVERSE = "rgb(70,140,255)";
 const PROMPT = "rgb(205,90,255)";
 const PIVOT = "rgb(255,60,60)";
+const UNIFORM = "rgb(45,212,191)";
 const PRUNED_FILL = "rgba(0,0,0,0.82)";
 
 interface Category {
@@ -20,6 +21,17 @@ interface Category {
 
 /** All kept-token categories in draw order, per method. */
 function keptCategories(md: PruningMetadata): Category[] {
+  if (md.method === "nprune" || md.uniform) {
+    // A single unranked category: the lattice has no scores or order.
+    return [
+      {
+        name: "uniform",
+        indices: md.uniform ?? [],
+        color: UNIFORM,
+        ranked: false,
+      },
+    ];
+  }
   if (md.method === "dart" || md.pivots) {
     return [
       { name: "pivots", indices: md.pivots ?? [], color: PIVOT, ranked: true },
