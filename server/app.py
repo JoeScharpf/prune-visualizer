@@ -82,7 +82,7 @@ MODELS = {
 }
 
 ModelKey = Literal["qwen2_5_vl", "llava_1_5", "gemma4"]
-MethodKey = Literal["hiprune", "hydart", "hiprune_pp"]
+MethodKey = Literal["hiprune", "hydart", "hiprune_pp", "dart"]
 
 
 class StartRequest(BaseModel):
@@ -91,6 +91,8 @@ class StartRequest(BaseModel):
     lambda_seed: float = 0.1
     lambda_pick: float = 0.5
     beta: float = Field(default=0.1, ge=0.0, le=1.0)
+    pivot_image: int = Field(default=4, ge=1, le=64)
+    pivot_text: int = Field(default=4, ge=0, le=64)
 
 
 class InferRequest(BaseModel):
@@ -105,6 +107,8 @@ class InferRequest(BaseModel):
     lambda_seed: float = 0.1
     lambda_pick: float = 0.5
     beta: float = Field(default=0.1, ge=0.0, le=1.0)
+    pivot_image: int = Field(default=4, ge=1, le=64)
+    pivot_text: int = Field(default=4, ge=0, le=64)
     with_baseline: bool = False
 
 
@@ -204,6 +208,8 @@ def launch_command(req: StartRequest) -> str:
         f"HYDART_LAMBDA_SEED={req.lambda_seed} "
         f"HYDART_LAMBDA_PICK={req.lambda_pick} "
         f"HIPRUNE_PP_BETA={req.beta} "
+        f"HIPRUNE_DART_PIVOT_IMAGE={req.pivot_image} "
+        f"HIPRUNE_DART_PIVOT_TEXT={req.pivot_text} "
         "VLLM_USE_V2_MODEL_RUNNER=0 VLLM_USE_FLASHINFER_SAMPLER=0"
     )
     cfg = MODELS[req.model]

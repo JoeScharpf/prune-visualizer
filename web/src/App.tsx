@@ -131,7 +131,9 @@ function Results({
               ? "HyDART"
               : md?.method === "hiprune_pp"
                 ? "HiPrune++"
-                : "HiPrune"}
+                : md?.method === "dart"
+                  ? "DART"
+                  : "HiPrune"}
             {md &&
               ` — ${md.pruned.length}/${md.num_tokens} pruned, grid ${md.grid[0]}x${md.grid[1]}`}
           </figcaption>
@@ -280,7 +282,9 @@ export default function App() {
             method,
             params.lambdaSeed,
             params.lambdaPick,
-            params.beta
+            params.beta,
+            params.pivotImage,
+            params.pivotText
           )
         );
       }

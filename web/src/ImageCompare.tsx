@@ -7,6 +7,7 @@ const BUFFER = "rgb(255,170,40)";
 const REGISTER = "rgb(50,255,80)";
 const DIVERSE = "rgb(70,140,255)";
 const PROMPT = "rgb(205,90,255)";
+const PIVOT = "rgb(255,60,60)";
 const PRUNED_FILL = "rgba(0,0,0,0.82)";
 
 interface Category {
@@ -17,16 +18,33 @@ interface Category {
   ranked: boolean;
 }
 
-/** Kept-token categories beyond anchors/buffers, per method. */
-function extraCategories(md: PruningMetadata): Category[] {
-  if (md.method === "hydart" || md.diverse) {
+/** All kept-token categories in draw order, per method. */
+function keptCategories(md: PruningMetadata): Category[] {
+  if (md.method === "dart" || md.pivots) {
     return [
+      { name: "pivots", indices: md.pivots ?? [], color: PIVOT, ranked: true },
       { name: "diverse", indices: md.diverse ?? [], color: DIVERSE, ranked: true },
     ];
   }
   const cats: Category[] = [
-    { name: "registers", indices: md.registers ?? [], color: REGISTER, ranked: true },
+    { name: "anchors", indices: md.anchors ?? [], color: ANCHOR, ranked: true },
+    { name: "buffers", indices: md.buffers ?? [], color: BUFFER, ranked: false },
   ];
+  if (md.method === "hydart" || md.diverse) {
+    cats.push({
+      name: "diverse",
+      indices: md.diverse ?? [],
+      color: DIVERSE,
+      ranked: true,
+    });
+    return cats;
+  }
+  cats.push({
+    name: "registers",
+    indices: md.registers ?? [],
+    color: REGISTER,
+    ranked: true,
+  });
   if (md.method === "hiprune_pp" || md.prompt_tokens) {
     cats.push({
       name: "prompt",
@@ -36,6 +54,19 @@ function extraCategories(md: PruningMetadata): Category[] {
     });
   }
   return cats;
+}
+
+/** Singular tooltip label for a legend/category name. */
+function singular(name: string): string {
+  return name === "pivots"
+    ? "pivot"
+    : name === "anchors"
+      ? "anchor"
+      : name === "buffers"
+        ? "buffer"
+        : name === "registers"
+          ? "register"
+          : name;
 }
 
 /** Draw the uploaded image the way the model's preprocessor sees it:
@@ -72,11 +103,9 @@ interface CellInfo {
 function buildCellIndex(md: PruningMetadata): Map<number, CellInfo> {
   const map = new Map<number, CellInfo>();
   const ordered: Array<[string, number[], string, boolean]> = [
-    ["anchor", md.anchors, ANCHOR, true],
-    ["buffer", md.buffers, BUFFER, false],
-    ...extraCategories(md).map(
+    ...keptCategories(md).map(
       (c): [string, number[], string, boolean] => [
-        c.name === "registers" ? "register" : c.name,
+        singular(c.name),
         c.indices,
         c.color,
         c.ranked,
@@ -145,13 +174,9 @@ export function OverlayCanvas({
         ctx.fillRect(x, y, cell, cell);
       }
 
-      const cats: Array<[number[], string]> = [
-        [metadata.anchors, ANCHOR],
-        [metadata.buffers, BUFFER],
-        ...extraCategories(metadata).map(
-          (c): [number[], string] => [c.indices, c.color]
-        ),
-      ];
+      const cats: Array<[number[], string]> = keptCategories(metadata).map(
+        (c): [number[], string] => [c.indices, c.color]
+      );
       ctx.lineWidth = 2;
       for (const [indices, color] of cats) {
         ctx.strokeStyle = color;
@@ -182,6 +207,10 @@ export function OverlayCanvas({
   const simScore = hover ? metadata.scores?.similarity?.[hover.idx] : undefined;
   const textSimScore = hover
     ? metadata.scores?.text_similarity?.[hover.idx]
+    : undefined;
+  const keyNorm = hover ? metadata.scores?.key_norm?.[hover.idx] : undefined;
+  const pivotSim = hover
+    ? metadata.scores?.pivot_similarity?.[hover.idx]
     : undefined;
   const hoverRow = hover ? Math.floor(hover.idx / gridW) : 0;
   const hoverCol = hover ? hover.idx % gridW : 0;
@@ -230,9 +259,21 @@ export function OverlayCanvas({
             {info.category}
             {info.rank != null && ` — rank ${info.rank}/${info.rankOf}`}
           </span>
-          <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
-            obj attn: {fmtScore(objScore, uniform)}
-          </span>
+          {objScore != null && (
+            <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
+              obj attn: {fmtScore(objScore, uniform)}
+            </span>
+          )}
+          {keyNorm != null && (
+            <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
+              key L1 norm: {keyNorm.toFixed(1)}
+            </span>
+          )}
+          {pivotSim != null && (
+            <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
+              pivot cos sim: {pivotSim.toFixed(3)}
+            </span>
+          )}
           {deepScore != null && (
             <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
               deep attn: {fmtScore(deepScore, uniform)}
@@ -256,9 +297,7 @@ export function OverlayCanvas({
 
 export function OverlayLegend({ metadata }: { metadata: PruningMetadata }) {
   const items: Array<[string, string, number]> = [
-    ["anchors", ANCHOR, metadata.anchors.length],
-    ["buffers", BUFFER, metadata.buffers.length],
-    ...extraCategories(metadata).map(
+    ...keptCategories(metadata).map(
       (c): [string, string, number] => [c.name, c.color, c.indices.length]
     ),
     ["pruned", "rgb(12,10,9)", metadata.pruned.length],

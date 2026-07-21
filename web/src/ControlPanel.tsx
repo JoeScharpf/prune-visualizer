@@ -227,6 +227,9 @@ export default function ControlPanel({
           >
             HiPrune++
           </Chip>
+          <Chip active={method === "dart"} onClick={() => onMethod("dart")}>
+            DART
+          </Chip>
         </div>
       </Field>
 
@@ -252,27 +255,30 @@ export default function ControlPanel({
       >
         <div className="flex flex-col gap-6">
           {/* Alpha and the object layer are fixed at serve time in the vLLM
-              fork, so they are shown but not editable. */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Alpha">
-              <input
-                type="number"
-                className={numInput + " opacity-60 cursor-not-allowed"}
-                value={0.1}
-                disabled
-                readOnly
-              />
-            </Field>
-            <Field label="Object layer">
-              <input
-                type="number"
-                className={numInput + " opacity-60 cursor-not-allowed"}
-                value={modelInfo.defaultObjectLayer}
-                disabled
-                readOnly
-              />
-            </Field>
-          </div>
+              fork, so they are shown but not editable. DART uses neither
+              (its selection runs on LLM layer states). */}
+          {method !== "dart" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Alpha">
+                <input
+                  type="number"
+                  className={numInput + " opacity-60 cursor-not-allowed"}
+                  value={0.1}
+                  disabled
+                  readOnly
+                />
+              </Field>
+              <Field label="Object layer">
+                <input
+                  type="number"
+                  className={numInput + " opacity-60 cursor-not-allowed"}
+                  value={modelInfo.defaultObjectLayer}
+                  disabled
+                  readOnly
+                />
+              </Field>
+            </div>
+          )}
 
           {method === "hiprune_pp" && (
             <Field
@@ -289,6 +295,33 @@ export default function ControlPanel({
                 onChange={(e) => set({ beta: Number(e.target.value) })}
               />
             </Field>
+          )}
+
+          {method === "dart" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Image pivots">
+                <input
+                  type="number"
+                  className={numInput}
+                  step={1}
+                  min={1}
+                  max={64}
+                  value={params.pivotImage}
+                  onChange={(e) => set({ pivotImage: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label="Text pivots">
+                <input
+                  type="number"
+                  className={numInput}
+                  step={1}
+                  min={0}
+                  max={64}
+                  value={params.pivotText}
+                  onChange={(e) => set({ pivotText: Number(e.target.value) })}
+                />
+              </Field>
+            </div>
           )}
 
           {method === "hydart" && (
@@ -335,9 +368,11 @@ export default function ControlPanel({
         hint={
           method === "hiprune_pp"
             ? "HiPrune++ is prompt-aware"
-            : method === "hydart"
-              ? "HyDART is NOT prompt-aware"
-              : "HiPrune is NOT prompt-aware"
+            : method === "dart"
+              ? "DART is prompt-aware"
+              : method === "hydart"
+                ? "HyDART is NOT prompt-aware"
+                : "HiPrune is NOT prompt-aware"
         }
       >
         <textarea

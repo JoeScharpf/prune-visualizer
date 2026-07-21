@@ -1,5 +1,5 @@
 export type ModelKey = "qwen2_5_vl" | "llava_1_5" | "gemma4";
-export type MethodKey = "hiprune" | "hydart" | "hiprune_pp";
+export type MethodKey = "hiprune" | "hydart" | "hiprune_pp" | "dart";
 
 export interface ModelInfo {
   key: ModelKey;
@@ -35,6 +35,8 @@ export interface Params {
   lambdaSeed: number;
   lambdaPick: number;
   beta: number;
+  pivotImage: number;
+  pivotText: number;
   prompt: string;
 }
 
@@ -44,6 +46,8 @@ export const DEFAULT_PARAMS: Params = {
   lambdaSeed: 0.1,
   lambdaPick: 0.5,
   beta: 0.1,
+  pivotImage: 4,
+  pivotText: 4,
   prompt: "Describe this image in detail.",
 };
 
@@ -57,24 +61,33 @@ export interface PruningMetadata {
   object_layer: number;
   alpha: number;
   pruned: number[];
-  anchors: number[];
-  buffers: number[];
+  anchors?: number[];
+  buffers?: number[];
   registers?: number[];
   diverse?: number[];
   /** HiPrune++ text-guided picks. */
   prompt_tokens?: number[];
+  /** DART image pivots (kept; text pivots are not image tokens). */
+  pivots?: number[];
   beta?: number;
   lambda_seed?: number;
   lambda_pick?: number;
+  pivot_image?: number;
+  pivot_text?: number;
+  num_text_pivots?: number;
+  dart_layer?: number;
   mean_attention?: Record<string, Record<string, number | null>>;
   similarity?: Record<string, number>;
   text_similarity_summary?: Record<string, number | null>;
+  key_norm_summary?: Record<string, number | null>;
   /** Per-token arrays (index = soft-token index) for hover tooltips. */
   scores?: {
     object_layer?: number[];
     deep_layer?: number[];
     similarity?: number[];
     text_similarity?: number[];
+    key_norm?: number[];
+    pivot_similarity?: number[];
   };
 }
 
