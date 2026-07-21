@@ -37,7 +37,7 @@ export interface Params {
   beta: number;
   pivotImage: number;
   pivotText: number;
-  /** NPrune lattice stride (1 = keep everything, 2 = ~25% kept). */
+  /** Lattice stride (wire key "nprune"; 1 = keep everything, 2 = ~25% kept). */
   stride: number;
   prompt: string;
 }
@@ -61,7 +61,7 @@ export interface PruningMetadata {
   grid: [number, number];
   num_tokens: number;
   retention: number;
-  /** Absent for methods without these knobs (NPrune). */
+  /** Absent for methods without these knobs (Lattice). */
   object_layer?: number;
   alpha?: number;
   pruned: number[];
@@ -73,9 +73,9 @@ export interface PruningMetadata {
   prompt_tokens?: number[];
   /** DART image pivots (kept; text pivots are not image tokens). */
   pivots?: number[];
-  /** NPrune uniform-lattice picks. */
+  /** Lattice uniform-lattice picks. */
   uniform?: number[];
-  /** NPrune lattice stride. */
+  /** Lattice stride. */
   stride?: number;
   beta?: number;
   lambda_seed?: number;
