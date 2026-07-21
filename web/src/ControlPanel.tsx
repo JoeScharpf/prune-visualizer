@@ -176,12 +176,18 @@ export default function ControlPanel({
       </Field>
 
       <Field label="Method">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Chip active={method === "hiprune"} onClick={() => onMethod("hiprune")}>
             HiPrune
           </Chip>
           <Chip active={method === "hydart"} onClick={() => onMethod("hydart")}>
             HyDART
+          </Chip>
+          <Chip
+            active={method === "hiprune_pp"}
+            onClick={() => onMethod("hiprune_pp")}
+          >
+            HiPrune++
           </Chip>
         </div>
       </Field>
@@ -223,6 +229,23 @@ export default function ControlPanel({
           />
         </Field>
       </div>
+
+      {method === "hiprune_pp" && (
+        <Field
+          label="Beta"
+          hint="text-guided token share"
+        >
+          <input
+            type="number"
+            className={numInput}
+            step={0.05}
+            min={0}
+            max={1}
+            value={params.beta}
+            onChange={(e) => set({ beta: Number(e.target.value) })}
+          />
+        </Field>
+      )}
 
       {method === "hydart" && (
         <div className="grid grid-cols-2 gap-3">

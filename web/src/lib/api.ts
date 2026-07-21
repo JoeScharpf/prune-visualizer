@@ -28,7 +28,8 @@ export async function startGpu(
   model: ModelKey,
   method: MethodKey,
   lambdaSeed: number,
-  lambdaPick: number
+  lambdaPick: number,
+  beta: number
 ): Promise<GpuStatus> {
   return jsonOrThrow(
     await fetch("/api/gpu/start", {
@@ -39,6 +40,7 @@ export async function startGpu(
         method,
         lambda_seed: lambdaSeed,
         lambda_pick: lambdaPick,
+        beta,
       }),
     })
   );
@@ -68,6 +70,7 @@ export async function infer(
         max_new_tokens: params.maxNewTokens,
         lambda_seed: params.lambdaSeed,
         lambda_pick: params.lambdaPick,
+        beta: params.beta,
         with_baseline: withBaseline,
       }),
     })
