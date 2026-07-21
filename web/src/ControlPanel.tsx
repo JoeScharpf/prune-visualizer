@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type {
   GpuStatus,
   MethodKey,
@@ -61,6 +62,42 @@ function Field({
 const numInput =
   "h-9 w-full border border-border bg-white px-2.5 text-sm font-mono text-fg " +
   "focus:border-stone-400 focus:outline-none";
+
+function Disclosure({
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-4 border-t border-border pt-4">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex items-center justify-between gap-2 text-left"
+      >
+        <span className="demo-kicker text-fg-muted">{label}</span>
+        <span
+          aria-hidden
+          className="text-fg-muted transition-transform"
+          style={{
+            fontSize: 11,
+            transform: open ? "rotate(90deg)" : "rotate(0deg)",
+          }}
+        >
+          ▶
+        </span>
+      </button>
+      {open && children}
+    </div>
+  );
+}
 
 function GpuChip({ status }: { status: GpuStatus }) {
   const phase = status.phase;
@@ -129,6 +166,16 @@ export default function ControlPanel({
   onWithBaseline: (v: boolean) => void;
 }) {
   const set = (patch: Partial<Params>) => onParams({ ...params, ...patch });
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Beta / lambda live inside the collapsed section; surface them when the
+  // user picks a method that has its own tunables.
+  useEffect(() => {
+    if (method === "hiprune_pp" || method === "hydart") {
+      setAdvancedOpen(true);
+    }
+  }, [method]);
+
   const gpuBusy = gpu.phase === "starting" || gpu.phase === "stopping";
   const running = gpu.phase === "ready" || gpu.phase === "starting";
   const restartNeeded =
@@ -207,82 +254,90 @@ export default function ControlPanel({
         />
       </Field>
 
-      {/* Alpha and the object layer are fixed at serve time in the vLLM
-          fork, so they are shown but not editable. */}
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Alpha">
-          <input
-            type="number"
-            className={numInput + " opacity-60 cursor-not-allowed"}
-            value={0.1}
-            disabled
-            readOnly
-          />
-        </Field>
-        <Field label="Object layer">
-          <input
-            type="number"
-            className={numInput + " opacity-60 cursor-not-allowed"}
-            value={modelInfo.defaultObjectLayer}
-            disabled
-            readOnly
-          />
-        </Field>
-      </div>
+      <Disclosure
+        label="Advanced settings"
+        open={advancedOpen}
+        onToggle={() => setAdvancedOpen((v) => !v)}
+      >
+        <div className="flex flex-col gap-6">
+          {/* Alpha and the object layer are fixed at serve time in the vLLM
+              fork, so they are shown but not editable. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Alpha">
+              <input
+                type="number"
+                className={numInput + " opacity-60 cursor-not-allowed"}
+                value={0.1}
+                disabled
+                readOnly
+              />
+            </Field>
+            <Field label="Object layer">
+              <input
+                type="number"
+                className={numInput + " opacity-60 cursor-not-allowed"}
+                value={modelInfo.defaultObjectLayer}
+                disabled
+                readOnly
+              />
+            </Field>
+          </div>
 
-      {method === "hiprune_pp" && (
-        <Field
-          label="Beta"
-          hint="text-guided token share"
-        >
-          <input
-            type="number"
-            className={numInput}
-            step={0.05}
-            min={0}
-            max={1}
-            value={params.beta}
-            onChange={(e) => set({ beta: Number(e.target.value) })}
-          />
-        </Field>
-      )}
+          {method === "hiprune_pp" && (
+            <Field
+              label="Beta"
+              hint="text-guided token share"
+            >
+              <input
+                type="number"
+                className={numInput}
+                step={0.05}
+                min={0}
+                max={1}
+                value={params.beta}
+                onChange={(e) => set({ beta: Number(e.target.value) })}
+              />
+            </Field>
+          )}
 
-      {method === "hydart" && (
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Lambda seed">
+          {method === "hydart" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Lambda seed">
+                <input
+                  type="number"
+                  className={numInput}
+                  step={0.05}
+                  min={0}
+                  value={params.lambdaSeed}
+                  onChange={(e) => set({ lambdaSeed: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label="Lambda pick">
+                <input
+                  type="number"
+                  className={numInput}
+                  step={0.05}
+                  min={0}
+                  value={params.lambdaPick}
+                  onChange={(e) => set({ lambdaPick: Number(e.target.value) })}
+                />
+              </Field>
+            </div>
+          )}
+
+          <Field label="Max new tokens">
             <input
               type="number"
               className={numInput}
-              step={0.05}
-              min={0}
-              value={params.lambdaSeed}
-              onChange={(e) => set({ lambdaSeed: Number(e.target.value) })}
-            />
-          </Field>
-          <Field label="Lambda pick">
-            <input
-              type="number"
-              className={numInput}
-              step={0.05}
-              min={0}
-              value={params.lambdaPick}
-              onChange={(e) => set({ lambdaPick: Number(e.target.value) })}
+              step={16}
+              min={1}
+              max={1024}
+              value={params.maxNewTokens}
+              onChange={(e) => set({ maxNewTokens: Number(e.target.value) })}
             />
           </Field>
         </div>
-      )}
-
-      <Field label="Max new tokens">
-        <input
-          type="number"
-          className={numInput}
-          step={16}
-          min={1}
-          max={1024}
-          value={params.maxNewTokens}
-          onChange={(e) => set({ maxNewTokens: Number(e.target.value) })}
-        />
-      </Field>
+      </Disclosure>
 
       <Field label="Prompt">
         <textarea
