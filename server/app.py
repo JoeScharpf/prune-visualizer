@@ -5,10 +5,15 @@ Three jobs:
 1. GPU control: launch/stop the model servers. "Start GPU" brings up
    one vLLM server per supported model (Qwen2.5-VL, LLaVA-1.5, Gemma-4)
    side by side, each with a capped ``--gpu-memory-utilization`` slice,
-   so switching models in the UI never requires a restart. In ``ssh``
-   mode the servers run on a remote GPU host reached over SSH, with an
-   SSH tunnel forwarding their ports; in ``local`` mode this backend
-   runs on the GPU machine itself and launches them directly.
+   so switching models in the UI never requires a restart. "Stop GPU"
+   puts the servers to *sleep* (vLLM sleep level 1: weights offload to
+   host RAM, KV cache freed, GPU drops to ~0), so the next Start wakes
+   them in seconds instead of a minutes-long cold boot; ``?hard=true``
+   on /gpu/stop still kills everything (required after vLLM-fork
+   deploys — sleeping processes run old code). In ``ssh`` mode the
+   servers run on a remote GPU host reached over SSH, with an SSH
+   tunnel forwarding their ports; in ``local`` mode this backend runs
+   on the GPU machine itself and launches them directly.
 2. Inference proxy: forward an image + prompt + pruning params to the
    requested model's server (OpenAI-compatible chat completions).
 3. Static serving of the built frontend (visualizer/web/dist).
@@ -41,6 +46,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import subprocess
 import threading
@@ -73,7 +79,9 @@ MODELS = {
         "hf_id": "Qwen/Qwen2.5-VL-3B-Instruct",
         "port": QWEN_PORT,
         "log": "serve_visualizer_qwen.log",
-        "max_model_len": 32768,
+        # One image + a short prompt; profiling and CUDA graph work scale
+        # with this, so keep it small for fast cold starts.
+        "max_model_len": 8192,
         "gpu_mem_util": 0.15,
     },
     "llava_1_5": {
@@ -124,10 +132,11 @@ class GpuState:
     /gpu/status probes.
 
     ``models`` maps every model key to its own phase (``stopped`` |
-    ``starting`` | ``ready`` | ``error``); ``phase`` is the aggregate:
-    ``starting`` while the launch sequence is in flight, ``ready`` once
-    it finishes with at least one healthy model, ``error`` only if all
-    models failed.
+    ``starting`` | ``ready`` | ``sleeping`` | ``error``); ``phase`` is
+    the aggregate: ``starting`` while the launch sequence is in flight,
+    ``ready`` once it finishes with at least one healthy model,
+    ``stopped`` when nothing serves (sleeping servers count as stopped —
+    with a fast start available), ``error`` only if all models failed.
     """
 
     def __init__(self) -> None:
@@ -189,14 +198,14 @@ def drop_tunnel() -> None:
             STATE.tunnel = None
 
 
-def health_url(model: str) -> str:
-    return f"http://localhost:{MODELS[model]['port']}/health"
+def base_url(model: str) -> str:
+    return f"http://localhost:{MODELS[model]['port']}"
 
 
 async def probe_health(model: str) -> bool:
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            r = await client.get(health_url(model))
+            r = await client.get(f"{base_url(model)}/health")
             return r.status_code == 200
     except httpx.HTTPError:
         return False
@@ -205,10 +214,40 @@ async def probe_health(model: str) -> bool:
 def probe_health_sync(model: str) -> bool:
     """Blocking twin of probe_health for the launcher thread."""
     try:
-        r = httpx.get(health_url(model), timeout=3.0)
+        r = httpx.get(f"{base_url(model)}/health", timeout=3.0)
         return r.status_code == 200
     except httpx.HTTPError:
         return False
+
+
+async def probe_sleeping(model: str) -> bool:
+    """True iff the server answers /is_sleeping with is_sleeping=true.
+    Unreachable or pre-sleep-mode servers report False."""
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get(f"{base_url(model)}/is_sleeping")
+            return r.status_code == 200 and bool(r.json().get("is_sleeping"))
+    except (httpx.HTTPError, ValueError):
+        return False
+
+
+def probe_sleeping_sync(model: str) -> bool:
+    try:
+        r = httpx.get(f"{base_url(model)}/is_sleeping", timeout=3.0)
+        return r.status_code == 200 and bool(r.json().get("is_sleeping"))
+    except (httpx.HTTPError, ValueError):
+        return False
+
+
+async def probe_serving(model: str) -> bool:
+    """Usable for inference: healthy AND awake. /health returns 200 even
+    while the engine sleeps (it only 503s on a dead engine), so health
+    alone can't gate requests anymore."""
+    return await probe_health(model) and not await probe_sleeping(model)
+
+
+def probe_serving_sync(model: str) -> bool:
+    return probe_health_sync(model) and not probe_sleeping_sync(model)
 
 
 def kill_remote_model(model: str) -> None:
@@ -234,9 +273,14 @@ def launch_command(model: str) -> str:
     waiting on the server process (the remote shell otherwise lingers as
     the job's parent and holds the session open).
     """
+    # VLLM_SERVER_DEV_MODE exposes the /sleep, /wake_up and /is_sleeping
+    # routes — but also admin routers (rpc/rlhf/cache). --host 127.0.0.1
+    # keeps all of it off the public interface; the backend and the SSH
+    # tunnel both reach the servers via localhost anyway.
     env = (
         f"CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES={GPU_INDEX} "
-        "VLLM_USE_V2_MODEL_RUNNER=0 VLLM_USE_FLASHINFER_SAMPLER=0"
+        "VLLM_USE_V2_MODEL_RUNNER=0 VLLM_USE_FLASHINFER_SAMPLER=0 "
+        "VLLM_SERVER_DEV_MODE=1"
     )
     cfg = MODELS[model]
     script = (
@@ -244,6 +288,10 @@ def launch_command(model: str) -> str:
         f"{env} exec vllm serve {cfg['hf_id']} "
         f"--max-model-len {cfg['max_model_len']} "
         f"--enable-hiprune --enable-per-request-metrics "
+        f"--enable-sleep-mode --host 127.0.0.1 "
+        # Single-user demo: few sequences, few CUDA graph sizes — cuts
+        # the profiling/capture part of the cold start.
+        f"--max-num-seqs 8 --cudagraph-capture-sizes 1 2 4 8 "
         f"--gpu-memory-utilization {cfg['gpu_mem_util']} --port {cfg['port']}"
     )
     return (
@@ -271,24 +319,62 @@ def _log_tail(model: str) -> str:
     return res.stdout.strip()[-500:] if res.returncode == 0 else ""
 
 
+# Waking (host RAM -> GPU weight copy) is seconds, not minutes; a short
+# deadline keeps a wedged wake from stalling the launch sequence.
+WAKE_TIMEOUT_S = 180
+
+
+def _wake_model_sync(model: str) -> bool:
+    """Wake a sleeping server; True once it serves again. False falls
+    back to the cold relaunch path."""
+    try:
+        r = httpx.post(f"{base_url(model)}/wake_up", timeout=30.0)
+        if r.status_code != 200:
+            return False
+    except httpx.HTTPError:
+        return False
+    deadline = time.time() + WAKE_TIMEOUT_S
+    while time.time() < deadline:
+        with STATE.lock:
+            if STATE.phase in ("stopping", "stopped"):
+                return False
+        if probe_serving_sync(model):
+            return True
+        time.sleep(2)
+    return False
+
+
 def _start_all_models() -> None:
     """Launcher thread body: bring up every model server in sequence.
 
-    Sequential on purpose — each vLLM startup validates its requested
-    memory slice against currently *free* GPU memory, so the checks must
-    see the previous servers' slices already claimed. A model already
-    healthy is left alone; an unhealthy one is killed (port-scoped) and
-    relaunched. One model failing never blocks the others.
+    Per model: already serving -> ready; healthy but asleep -> wake
+    (seconds); otherwise cold launch (kill stale process, relaunch, poll
+    health). Sequential on purpose — each vLLM cold start validates its
+    requested memory slice against currently *free* GPU memory, so the
+    checks must see the previous servers' slices already claimed. One
+    model failing never blocks the others.
     """
     first_error = ""
     for key in MODELS:
         with STATE.lock:
             if STATE.phase in ("stopping", "stopped"):
                 return  # user hit Stop mid-sequence; leave state to gpu_stop
-        if probe_health_sync(key):
+        if probe_serving_sync(key):
             with STATE.lock:
                 STATE.models[key] = "ready"
             continue
+        if probe_health_sync(key) and probe_sleeping_sync(key):
+            with STATE.lock:
+                STATE.models[key] = "starting"
+                STATE.detail = f"waking {key} on {HOST_LABEL}"
+            if _wake_model_sync(key):
+                with STATE.lock:
+                    STATE.models[key] = "ready"
+                continue
+            with STATE.lock:
+                if STATE.phase in ("stopping", "stopped"):
+                    return
+            # Wake failed: fall through to a cold relaunch.
         with STATE.lock:
             STATE.models[key] = "starting"
             STATE.detail = f"starting {key} on {HOST_LABEL}"
@@ -336,23 +422,37 @@ async def gpu_status() -> dict[str, Any]:
     with STATE.lock:
         phase = STATE.phase
         launching = STATE.start_thread is not None and STATE.start_thread.is_alive()
-    if phase in ("starting", "ready"):
+    # "unknown" is probed too: after a backend restart (every deploy) the
+    # state resets, and only a probe can rediscover live or sleeping
+    # servers.
+    if phase in ("starting", "ready", "unknown"):
         ensure_tunnel()
         for key in MODELS:
             healthy = await probe_health(key)
+            sleeping = healthy and await probe_sleeping(key)
             with STATE.lock:
-                if healthy:
+                if healthy and not sleeping:
                     STATE.models[key] = "ready"
+                elif sleeping:
+                    # While the launcher runs it owns transitions (it may
+                    # be about to wake this very server).
+                    if not launching:
+                        STATE.models[key] = "sleeping"
                 elif not launching and STATE.models[key] == "ready":
                     # Was ready, now unhealthy: report starting so the UI
                     # shows progress instead of silently failing runs.
                     STATE.models[key] = "starting"
         if not launching:
             with STATE.lock:
-                if any(p == "ready" for p in STATE.models.values()):
+                vals = list(STATE.models.values())
+                if any(v == "ready" for v in vals):
                     STATE.phase = "ready"
-                    if STATE.detail.startswith("starting "):
+                    if STATE.detail.startswith(("starting ", "waking ")):
                         STATE.detail = ""
+                elif any(v == "sleeping" for v in vals):
+                    # Nothing serving but servers are asleep: that's a
+                    # stopped GPU with a fast start available.
+                    STATE.phase = "stopped"
     with STATE.lock:
         return {
             "phase": STATE.phase,
@@ -381,18 +481,63 @@ async def gpu_start() -> dict[str, Any]:
     return await gpu_status()
 
 
+async def _sleep_model(model: str) -> bool:
+    """Put one server to sleep (level 1: weights -> host RAM, KV cache
+    freed). True once /is_sleeping confirms."""
+    try:
+        # Offloading tens of GB of weights takes a few seconds; give the
+        # call room, then confirm.
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            r = await client.post(f"{base_url(model)}/sleep", params={"level": "1"})
+        if r.status_code != 200:
+            return False
+    except httpx.HTTPError:
+        return False
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        if await probe_sleeping(model):
+            return True
+        await asyncio.sleep(1)
+    return False
+
+
 @app.post("/api/gpu/stop")
-async def gpu_stop() -> dict[str, Any]:
+async def gpu_stop(hard: bool = False) -> dict[str, Any]:
+    """Default (UI button): put healthy servers to *sleep* — the GPU is
+    freed but the processes keep their weights in host RAM, so the next
+    Start is a wake (seconds) instead of a cold boot (minutes).
+
+    ``?hard=true``: the old kill-everything path. Needed after vLLM-fork
+    deploys (sleeping processes run old code) and as a recovery hammer.
+    """
     with STATE.lock:
         STATE.phase = "stopping"
     try:
-        stop_all_remote()
+        if hard:
+            stop_all_remote()
+            with STATE.lock:
+                for key in MODELS:
+                    STATE.models[key] = "stopped"
+        else:
+            for key in MODELS:
+                if await probe_health(key):
+                    slept = await probe_sleeping(key) or await _sleep_model(key)
+                    if not slept:
+                        # e.g. stale pre-sleep-mode process: fall back to
+                        # this model's port-scoped kill.
+                        kill_remote_model(key)
+                    with STATE.lock:
+                        STATE.models[key] = "sleeping" if slept else "stopped"
+                else:
+                    with STATE.lock:
+                        STATE.models[key] = "stopped"
     finally:
-        drop_tunnel()
+        if hard:
+            # Soft stop keeps the tunnel: sleeping servers still get
+            # probed by /gpu/status.
+            drop_tunnel()
         with STATE.lock:
             STATE.phase = "stopped"
-            for key in MODELS:
-                STATE.models[key] = "stopped"
             STATE.detail = ""
     return await gpu_status()
 
@@ -467,7 +612,9 @@ async def infer_vllm(req: InferRequest) -> dict[str, Any]:
 @app.post("/api/infer")
 async def infer(req: InferRequest) -> dict[str, Any]:
     ensure_tunnel()
-    if not await probe_health(req.model):
+    # Serving = healthy AND awake; a sleeping engine answers /health 200
+    # but can't run requests.
+    if not await probe_serving(req.model):
         raise HTTPException(503, "Model server is not ready — start the GPU first")
     return await infer_vllm(req)
 

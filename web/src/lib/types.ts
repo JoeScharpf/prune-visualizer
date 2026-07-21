@@ -113,8 +113,15 @@ export type GpuPhase =
   | "unknown";
 
 /** Phase of one model's server; all models run concurrently, so each
- * has its own lifecycle. */
-export type ModelPhase = "stopped" | "starting" | "ready" | "error" | "unknown";
+ * has its own lifecycle. "sleeping" = weights offloaded to host RAM
+ * (GPU freed, next start is a fast wake). */
+export type ModelPhase =
+  | "stopped"
+  | "starting"
+  | "ready"
+  | "sleeping"
+  | "error"
+  | "unknown";
 
 export interface GpuStatus {
   /** Aggregate: "starting" while the launch sequence runs, "ready" once
