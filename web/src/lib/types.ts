@@ -118,6 +118,7 @@ export type GpuPhase =
 export type ModelPhase =
   | "stopped"
   | "starting"
+  | "stopping"
   | "ready"
   | "sleeping"
   | "error"

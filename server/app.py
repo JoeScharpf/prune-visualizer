@@ -132,11 +132,12 @@ class GpuState:
     /gpu/status probes.
 
     ``models`` maps every model key to its own phase (``stopped`` |
-    ``starting`` | ``ready`` | ``sleeping`` | ``error``); ``phase`` is
-    the aggregate: ``starting`` while the launch sequence is in flight,
-    ``ready`` once it finishes with at least one healthy model,
-    ``stopped`` when nothing serves (sleeping servers count as stopped —
-    with a fast start available), ``error`` only if all models failed.
+    ``starting`` | ``stopping`` | ``ready`` | ``sleeping`` | ``error``);
+    ``phase`` is the aggregate: ``starting``/``stopping`` while the
+    launch/stop work is in flight, ``ready`` once a start finishes with
+    at least one healthy model, ``stopped`` when nothing serves
+    (sleeping servers count as stopped — with a fast start available),
+    ``error`` only if all models failed.
     """
 
     def __init__(self) -> None:
@@ -146,6 +147,7 @@ class GpuState:
         self.detail: str = ""
         self.tunnel: subprocess.Popen | None = None
         self.start_thread: threading.Thread | None = None
+        self.stop_task: asyncio.Task | None = None
 
 
 STATE = GpuState()
@@ -468,6 +470,8 @@ async def gpu_start() -> dict[str, Any]:
     with STATE.lock:
         if STATE.start_thread is not None and STATE.start_thread.is_alive():
             raise HTTPException(409, "Servers are already starting")
+        if STATE.stop_task is not None and not STATE.stop_task.done():
+            raise HTTPException(409, "Servers are stopping — try again in a moment")
         STATE.phase = "starting"
         STATE.detail = f"launching on {HOST_LABEL} (first start downloads weights)"
         for key in MODELS:
@@ -501,44 +505,78 @@ async def _sleep_model(model: str) -> bool:
     return False
 
 
+async def _sleep_or_kill(model: str) -> None:
+    """Soft-stop one server: sleep it if healthy, port-scoped kill if
+    the sleep fails (e.g. stale pre-sleep-mode process)."""
+    if await probe_health(model):
+        slept = await probe_sleeping(model) or await _sleep_model(model)
+        if not slept:
+            await asyncio.to_thread(kill_remote_model, model)
+        with STATE.lock:
+            STATE.models[model] = "sleeping" if slept else "stopped"
+    else:
+        with STATE.lock:
+            STATE.models[model] = "stopped"
+
+
+async def _stop_all_models() -> None:
+    """Background soft-stop: all three sleeps run in parallel (they are
+    independent HTTP calls to separate servers — the sequential ordering
+    that cold *starts* need for memory-slice validation doesn't apply),
+    so the whole stop takes one model's offload time, not the sum."""
+    try:
+        await asyncio.gather(*(_sleep_or_kill(key) for key in MODELS))
+    finally:
+        with STATE.lock:
+            STATE.phase = "stopped"
+            STATE.detail = ""
+            STATE.stop_task = None
+
+
 @app.post("/api/gpu/stop")
 async def gpu_stop(hard: bool = False) -> dict[str, Any]:
     """Default (UI button): put healthy servers to *sleep* — the GPU is
     freed but the processes keep their weights in host RAM, so the next
-    Start is a wake (seconds) instead of a cold boot (minutes).
+    Start is a wake (seconds) instead of a cold boot (minutes). Returns
+    immediately; the UI polls /gpu/status for per-model progress
+    (mirroring how Start works). Repeated presses while stopping are
+    no-ops. The tunnel stays up: sleeping servers still get probed.
 
-    ``?hard=true``: the old kill-everything path. Needed after vLLM-fork
-    deploys (sleeping processes run old code) and as a recovery hammer.
+    ``?hard=true``: the old kill-everything path, synchronous. Needed
+    after vLLM-fork deploys (sleeping processes run old code) and as a
+    recovery hammer.
     """
-    with STATE.lock:
-        STATE.phase = "stopping"
-    try:
-        if hard:
-            stop_all_remote()
+    if hard:
+        with STATE.lock:
+            if STATE.stop_task is not None and not STATE.stop_task.done():
+                STATE.stop_task.cancel()
+                STATE.stop_task = None
+            STATE.phase = "stopping"
+        try:
+            await asyncio.to_thread(stop_all_remote)
             with STATE.lock:
                 for key in MODELS:
                     STATE.models[key] = "stopped"
-        else:
-            for key in MODELS:
-                if await probe_health(key):
-                    slept = await probe_sleeping(key) or await _sleep_model(key)
-                    if not slept:
-                        # e.g. stale pre-sleep-mode process: fall back to
-                        # this model's port-scoped kill.
-                        kill_remote_model(key)
-                    with STATE.lock:
-                        STATE.models[key] = "sleeping" if slept else "stopped"
-                else:
-                    with STATE.lock:
-                        STATE.models[key] = "stopped"
-    finally:
-        if hard:
-            # Soft stop keeps the tunnel: sleeping servers still get
-            # probed by /gpu/status.
+        finally:
             drop_tunnel()
+            with STATE.lock:
+                STATE.phase = "stopped"
+                STATE.detail = ""
+        return await gpu_status()
+
+    with STATE.lock:
+        if STATE.stop_task is not None and not STATE.stop_task.done():
+            already_stopping = True
+        else:
+            already_stopping = False
+            STATE.phase = "stopping"
+            STATE.detail = f"putting servers to sleep on {HOST_LABEL}"
+            for key in MODELS:
+                STATE.models[key] = "stopping"
+    if not already_stopping:
+        task = asyncio.create_task(_stop_all_models())
         with STATE.lock:
-            STATE.phase = "stopped"
-            STATE.detail = ""
+            STATE.stop_task = task
     return await gpu_status()
 
 
