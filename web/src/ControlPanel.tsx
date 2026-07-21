@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type {
   GpuStatus,
   MethodKey,
@@ -167,15 +167,6 @@ export default function ControlPanel({
 }) {
   const set = (patch: Partial<Params>) => onParams({ ...params, ...patch });
   const [advancedOpen, setAdvancedOpen] = useState(false);
-
-  // Beta / lambda live inside the collapsed section; surface them when the
-  // user picks a method that has its own tunables.
-  useEffect(() => {
-    if (method === "hiprune_pp" || method === "hydart") {
-      setAdvancedOpen(true);
-    }
-  }, [method]);
-
   const gpuBusy = gpu.phase === "starting" || gpu.phase === "stopping";
   const running = gpu.phase === "ready" || gpu.phase === "starting";
   const restartNeeded =
