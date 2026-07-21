@@ -246,13 +246,13 @@ export default function ControlPanel({
             { value: "hydart", label: "HyDART" },
             { value: "hiprune_pp", label: "HiPrune++" },
             { value: "dart", label: "DART" },
-            { value: "nprune", label: "NPrune (uniform)" },
+            { value: "nprune", label: "Lattice (uniform)" },
           ]}
           onChange={onMethod}
         />
       </Field>
 
-      {/* NPrune's keep count is stride-implied (uniform lattice), so the
+      {/* Lattice's keep count is stride-implied (uniform lattice), so the
           retention slider does not apply; the stride select lives in
           Advanced settings. */}
       {method !== "nprune" && (
@@ -280,7 +280,7 @@ export default function ControlPanel({
         <div className="flex flex-col gap-6">
           {/* Alpha and the object layer are fixed at serve time in the vLLM
               fork, so they are shown but not editable. DART uses neither
-              (its selection runs on LLM layer states); NPrune uses no
+              (its selection runs on LLM layer states); Lattice uses no
               scores at all. */}
           {method !== "dart" && method !== "nprune" && (
             <div className="grid grid-cols-2 gap-3">
@@ -418,7 +418,7 @@ export default function ControlPanel({
               : method === "hydart"
                 ? "HyDART is NOT prompt-aware"
                 : method === "nprune"
-                  ? "NPrune is NOT prompt-aware"
+                  ? "Lattice is NOT prompt-aware"
                   : "HiPrune is NOT prompt-aware"
         }
       >

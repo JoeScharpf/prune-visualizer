@@ -124,7 +124,7 @@ class InferRequest(BaseModel):
     beta: float = Field(default=0.1, ge=0.0, le=1.0)
     pivot_image: int = Field(default=4, ge=1, le=64)
     pivot_text: int = Field(default=4, ge=0, le=64)
-    # NPrune lattice stride (1 = keep everything, 2 = ~25% kept).
+    # Lattice stride (wire key "nprune"; 1 = keep everything, 2 = ~25% kept).
     stride: int = Field(default=2, ge=1, le=2)
     with_baseline: bool = False
 
@@ -600,7 +600,7 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
     if not pruned:
         return body
     if req.method == "nprune":
-        # NPrune ignores the retention slider: the keep count is the
+        # Lattice ignores the retention slider: the keep count is the
         # exact uniform-lattice count, a function of the grid shape and
         # stride. token_pruning (nominal 1/stride^2) only activates the
         # pruning pipeline. Stride 1 keeps every token — identical to
