@@ -107,6 +107,9 @@ function Disclosure({
 
 function GpuChip({ status }: { status: GpuStatus }) {
   const phase = status.phase;
+  const models = status.models ?? {};
+  const total = MODELS.length;
+  const readyCount = MODELS.filter((m) => models[m.key] === "ready").length;
   const color =
     phase === "ready"
       ? "#16a34a"
@@ -117,9 +120,11 @@ function GpuChip({ status }: { status: GpuStatus }) {
           : "#a8a29e";
   const label =
     phase === "ready"
-      ? `live — ${status.model ?? ""}`
+      ? readyCount === total
+        ? "live — all models"
+        : `live — ${readyCount}/${total} models`
       : phase === "starting"
-        ? "starting…"
+        ? `starting… ${readyCount}/${total} ready`
         : phase === "stopping"
           ? "stopping…"
           : phase === "error"
@@ -175,9 +180,9 @@ export default function ControlPanel({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const gpuBusy = gpu.phase === "starting" || gpu.phase === "stopping";
   const running = gpu.phase === "ready" || gpu.phase === "starting";
-  // The method and its knobs apply per request; only a model change
-  // requires relaunching the server.
-  const restartNeeded = gpu.phase === "ready" && gpu.model !== model;
+  // All model servers run concurrently and the method/knobs apply per
+  // request, so nothing ever needs a restart.
+  const modelPhase = gpu.models?.[model];
   const modelInfo = MODELS.find((m) => m.key === model)!;
 
   return (
@@ -203,14 +208,19 @@ export default function ControlPanel({
       {gpu.detail && gpu.phase !== "ready" && (
         <p className="text-xs font-mono text-fg-muted -mt-4">{gpu.detail}</p>
       )}
-      {restartNeeded && (
-        <p className="text-xs text-fg-muted -mt-3">
-          The server is running {gpu.model}. Start GPU again to switch to{" "}
-          {model}.
-        </p>
-      )}
 
-      <Field label="Model">
+      <Field
+        label="Model"
+        hint={
+          running && modelPhase === "starting"
+            ? "starting…"
+            : running && modelPhase === "error"
+              ? "failed to start"
+              : modelPhase === "ready"
+                ? "switches instantly"
+                : undefined
+        }
+      >
         <Select
           value={model}
           options={MODELS.map((m) => ({ value: m.key, label: m.label }))}
@@ -220,11 +230,7 @@ export default function ControlPanel({
 
       <Field
         label="Method"
-        hint={
-          gpu.phase === "ready" && gpu.model === model
-            ? "applies on next run"
-            : undefined
-        }
+        hint={modelPhase === "ready" ? "applies on next run" : undefined}
       >
         <Select
           value={method}

@@ -112,8 +112,14 @@ export type GpuPhase =
   | "error"
   | "unknown";
 
+/** Phase of one model's server; all models run concurrently, so each
+ * has its own lifecycle. */
+export type ModelPhase = "stopped" | "starting" | "ready" | "error" | "unknown";
+
 export interface GpuStatus {
+  /** Aggregate: "starting" while the launch sequence runs, "ready" once
+   * at least one model server is healthy. Per-model truth is `models`. */
   phase: GpuPhase;
-  model: ModelKey | null;
+  models?: Partial<Record<ModelKey, ModelPhase>>;
   detail?: string;
 }
