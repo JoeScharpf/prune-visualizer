@@ -2,13 +2,15 @@
 
 Three jobs:
 
-1. GPU control: launch/stop the model server (the vLLM fork serves both
-   Qwen2.5-VL and LLaVA-1.5). In ``ssh`` mode the server runs on a
-   remote GPU host reached over SSH, with an SSH tunnel forwarding its
-   port; in ``local`` mode this backend runs on the GPU machine itself
-   and launches it directly.
+1. GPU control: launch/stop the model servers. "Start GPU" brings up
+   one vLLM server per supported model (Qwen2.5-VL, LLaVA-1.5, Gemma-4)
+   side by side, each with a capped ``--gpu-memory-utilization`` slice,
+   so switching models in the UI never requires a restart. In ``ssh``
+   mode the servers run on a remote GPU host reached over SSH, with an
+   SSH tunnel forwarding their ports; in ``local`` mode this backend
+   runs on the GPU machine itself and launches them directly.
 2. Inference proxy: forward an image + prompt + pruning params to the
-   model server (OpenAI-compatible chat completions for both models).
+   requested model's server (OpenAI-compatible chat completions).
 3. Static serving of the built frontend (visualizer/web/dist).
 
 Deployment config (environment variables):
@@ -22,7 +24,13 @@ Deployment config (environment variables):
 Server-side facts this encodes (from the deployed vLLM fork):
 - The method and its knobs are per-request (`token_pruning_method` /
   `token_pruning_params` chat-completions fields), like the retention
-  ratio (`token_pruning`). Only a model change restarts the server.
+  ratio (`token_pruning`). All models are resident at once, so neither
+  a model nor a method change ever restarts anything.
+- Each vLLM server requests ``total_memory * gpu_memory_utilization``
+  and validates it against *free* memory at startup, so the per-model
+  caps below are disjoint slices of the card and must sum below ~0.9.
+  Servers are launched sequentially so each startup check sees the
+  previous servers' slices already claimed.
 - Alpha and object layer are constants in the fork (paper defaults per
   model), so they are display-only in the UI.
 
@@ -66,30 +74,32 @@ MODELS = {
         "port": QWEN_PORT,
         "log": "serve_visualizer_qwen.log",
         "max_model_len": 32768,
+        "gpu_mem_util": 0.15,
     },
     "llava_1_5": {
         "hf_id": "llava-hf/llava-1.5-7b-hf",
         "port": LLAVA_PORT,
         "log": "serve_visualizer_llava.log",
         "max_model_len": 4096,
+        "gpu_mem_util": 0.20,
     },
     "gemma4": {
         "hf_id": "google/gemma-4-e4b-it",
         "port": GEMMA_PORT,
         "log": "serve_visualizer_gemma.log",
         "max_model_len": 8192,
+        "gpu_mem_util": 0.20,
     },
 }
 
 ModelKey = Literal["qwen2_5_vl", "llava_1_5", "gemma4"]
 MethodKey = Literal["hiprune", "hydart", "hiprune_pp", "dart"]
 
-
-class StartRequest(BaseModel):
-    """A GPU start is purely "load this model": the pruning method and
-    its knobs travel per inference request, not in the launch env."""
-
-    model: ModelKey
+# Per-model cap on waiting for /health after a launch. Weights are
+# cached on the box after the first start, so a healthy load is a few
+# minutes; the cap only bounds how long a broken server blocks the
+# launch sequence.
+MODEL_START_TIMEOUT_S = int(os.environ.get("HIPRUNE_START_TIMEOUT_S", "900"))
 
 
 class InferRequest(BaseModel):
@@ -111,14 +121,22 @@ class InferRequest(BaseModel):
 
 class GpuState:
     """In-memory view of what we launched; verified against reality by
-    /gpu/status probes."""
+    /gpu/status probes.
+
+    ``models`` maps every model key to its own phase (``stopped`` |
+    ``starting`` | ``ready`` | ``error``); ``phase`` is the aggregate:
+    ``starting`` while the launch sequence is in flight, ``ready`` once
+    it finishes with at least one healthy model, ``error`` only if all
+    models failed.
+    """
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.phase: str = "unknown"
-        self.model: str | None = None
+        self.models: dict[str, str] = {key: "unknown" for key in MODELS}
         self.detail: str = ""
         self.tunnel: subprocess.Popen | None = None
+        self.start_thread: threading.Thread | None = None
 
 
 STATE = GpuState()
@@ -184,13 +202,31 @@ async def probe_health(model: str) -> bool:
         return False
 
 
-def remote_server_running(model: str) -> bool:
+def probe_health_sync(model: str) -> bool:
+    """Blocking twin of probe_health for the launcher thread."""
+    try:
+        r = httpx.get(health_url(model), timeout=3.0)
+        return r.status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
+def kill_remote_model(model: str) -> None:
+    """Kill only this model's server (matched by its --port), so a stale
+    or hung process can't hold the port against a relaunch. Never the
+    global kill: that would tear down the healthy sibling servers. The
+    bracketed first letter keeps pkill -f from matching the shell
+    executing this command string; EngineCore children exit on their own
+    when the serve parent dies."""
     port = MODELS[model]["port"]
-    res = ssh_run(f"pgrep -u \"$(id -u)\" -f 'port {port}' >/dev/null && echo yes || echo no")
-    return res.returncode == 0 and "yes" in res.stdout
+    ssh_run(
+        f"pkill -u \"$(id -u)\" -f '[p]ort {port}' ; sleep 2 ; "
+        f"pkill -9 -u \"$(id -u)\" -f '[p]ort {port}' ; true",
+        timeout=30,
+    )
 
 
-def launch_command(req: StartRequest) -> str:
+def launch_command(model: str) -> str:
     """Build the remote launch line.
 
     The whole launch script is backgrounded with every fd detached from
@@ -202,13 +238,13 @@ def launch_command(req: StartRequest) -> str:
         f"CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES={GPU_INDEX} "
         "VLLM_USE_V2_MODEL_RUNNER=0 VLLM_USE_FLASHINFER_SAMPLER=0"
     )
-    cfg = MODELS[req.model]
+    cfg = MODELS[model]
     script = (
         f"cd {REMOTE_DIR} && source venv/bin/activate && "
         f"{env} exec vllm serve {cfg['hf_id']} "
         f"--max-model-len {cfg['max_model_len']} "
         f"--enable-hiprune --enable-per-request-metrics "
-        f"--gpu-memory-utilization 0.85 --port {cfg['port']}"
+        f"--gpu-memory-utilization {cfg['gpu_mem_util']} --port {cfg['port']}"
     )
     return (
         f"nohup bash -c '{script}' > {REMOTE_DIR}/{cfg['log']} 2>&1 < /dev/null & "
@@ -230,45 +266,118 @@ def stop_all_remote() -> None:
     )
 
 
+def _log_tail(model: str) -> str:
+    res = ssh_run(f"tail -n 5 {REMOTE_DIR}/{MODELS[model]['log']} 2>/dev/null", timeout=15)
+    return res.stdout.strip()[-500:] if res.returncode == 0 else ""
+
+
+def _start_all_models() -> None:
+    """Launcher thread body: bring up every model server in sequence.
+
+    Sequential on purpose — each vLLM startup validates its requested
+    memory slice against currently *free* GPU memory, so the checks must
+    see the previous servers' slices already claimed. A model already
+    healthy is left alone; an unhealthy one is killed (port-scoped) and
+    relaunched. One model failing never blocks the others.
+    """
+    first_error = ""
+    for key in MODELS:
+        with STATE.lock:
+            if STATE.phase in ("stopping", "stopped"):
+                return  # user hit Stop mid-sequence; leave state to gpu_stop
+        if probe_health_sync(key):
+            with STATE.lock:
+                STATE.models[key] = "ready"
+            continue
+        with STATE.lock:
+            STATE.models[key] = "starting"
+            STATE.detail = f"starting {key} on {HOST_LABEL}"
+        try:
+            kill_remote_model(key)
+            res = ssh_run(launch_command(key), timeout=60)
+            if res.returncode != 0 or "LAUNCHED" not in res.stdout:
+                raise RuntimeError(
+                    res.stderr.strip() or res.stdout.strip() or "launch failed"
+                )
+            deadline = time.time() + MODEL_START_TIMEOUT_S
+            while time.time() < deadline:
+                with STATE.lock:
+                    if STATE.phase in ("stopping", "stopped"):
+                        # Stop landed mid-poll: the server we're waiting
+                        # on was just killed. Bail out instead of probing
+                        # a dead port until the timeout (which would also
+                        # block a follow-up Start behind the 409 guard).
+                        return
+                if probe_health_sync(key):
+                    break
+                time.sleep(5)
+            else:
+                raise RuntimeError(
+                    f"not healthy after {MODEL_START_TIMEOUT_S}s: {_log_tail(key)}"
+                )
+            with STATE.lock:
+                STATE.models[key] = "ready"
+        except Exception as exc:
+            if not first_error:
+                first_error = f"{key}: {exc}"
+            with STATE.lock:
+                STATE.models[key] = "error"
+
+    with STATE.lock:
+        if STATE.phase in ("stopping", "stopped"):
+            return  # a Stop won the race; don't overwrite its state
+        any_ready = any(p == "ready" for p in STATE.models.values())
+        STATE.phase = "ready" if any_ready else "error"
+        STATE.detail = "" if any_ready else (first_error or "all model servers failed")
+
+
 @app.get("/api/gpu/status")
 async def gpu_status() -> dict[str, Any]:
     with STATE.lock:
-        phase, model = STATE.phase, STATE.model
-        detail = STATE.detail
-    if phase in ("starting", "ready") and model is not None:
+        phase = STATE.phase
+        launching = STATE.start_thread is not None and STATE.start_thread.is_alive()
+    if phase in ("starting", "ready"):
         ensure_tunnel()
-        if await probe_health(model):
+        for key in MODELS:
+            healthy = await probe_health(key)
             with STATE.lock:
-                STATE.phase = "ready"
-                STATE.detail = ""
-            phase, detail = "ready", ""
-        elif phase == "ready":
-            # Was ready, now unhealthy: report starting so the UI shows
-            # progress instead of silently failing runs.
-            phase = "starting"
-            detail = "server not responding; waiting for it to come back"
-    return {"phase": phase, "model": model, "detail": detail}
+                if healthy:
+                    STATE.models[key] = "ready"
+                elif not launching and STATE.models[key] == "ready":
+                    # Was ready, now unhealthy: report starting so the UI
+                    # shows progress instead of silently failing runs.
+                    STATE.models[key] = "starting"
+        if not launching:
+            with STATE.lock:
+                if any(p == "ready" for p in STATE.models.values()):
+                    STATE.phase = "ready"
+                    if STATE.detail.startswith("starting "):
+                        STATE.detail = ""
+    with STATE.lock:
+        return {
+            "phase": STATE.phase,
+            "models": dict(STATE.models),
+            "detail": STATE.detail,
+        }
 
 
 @app.post("/api/gpu/start")
-async def gpu_start(req: StartRequest) -> dict[str, Any]:
+async def gpu_start() -> dict[str, Any]:
+    """Start every model server that isn't already healthy. Returns
+    immediately; the UI polls /gpu/status for per-model progress."""
     with STATE.lock:
-        if STATE.phase == "starting":
-            raise HTTPException(409, "A server is already starting")
+        if STATE.start_thread is not None and STATE.start_thread.is_alive():
+            raise HTTPException(409, "Servers are already starting")
         STATE.phase = "starting"
-        STATE.model = req.model
         STATE.detail = f"launching on {HOST_LABEL} (first start downloads weights)"
-    try:
-        stop_all_remote()
-        res = ssh_run(launch_command(req), timeout=60)
-        if res.returncode != 0 or "LAUNCHED" not in res.stdout:
-            raise RuntimeError(res.stderr.strip() or res.stdout.strip() or "launch failed")
-        ensure_tunnel()
-    except Exception as exc:  # surface the SSH error to the UI
-        with STATE.lock:
-            STATE.phase = "error"
-            STATE.detail = str(exc)
-        raise HTTPException(500, f"GPU start failed: {exc}") from exc
+        for key in MODELS:
+            STATE.models[key] = "starting"
+    # Tunnel must be up before the launcher thread probes health, or a
+    # healthy server would look dead and get needlessly relaunched.
+    ensure_tunnel()
+    with STATE.lock:
+        STATE.start_thread = threading.Thread(target=_start_all_models, daemon=True)
+        STATE.start_thread.start()
     return await gpu_status()
 
 
@@ -282,7 +391,8 @@ async def gpu_stop() -> dict[str, Any]:
         drop_tunnel()
         with STATE.lock:
             STATE.phase = "stopped"
-            STATE.model = None
+            for key in MODELS:
+                STATE.models[key] = "stopped"
             STATE.detail = ""
     return await gpu_status()
 

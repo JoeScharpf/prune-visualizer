@@ -24,16 +24,10 @@ export async function getGpuStatus(): Promise<GpuStatus> {
   return jsonOrThrow(await fetch("/api/gpu/status"));
 }
 
-export async function startGpu(model: ModelKey): Promise<GpuStatus> {
-  // A GPU start is purely "load this model": the pruning method and its
-  // knobs travel per inference request.
-  return jsonOrThrow(
-    await fetch("/api/gpu/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model }),
-    })
-  );
+export async function startGpu(): Promise<GpuStatus> {
+  // A GPU start brings up every model server; switching models never
+  // needs a restart. Method and knobs travel per inference request.
+  return jsonOrThrow(await fetch("/api/gpu/start", { method: "POST" }));
 }
 
 export async function stopGpu(): Promise<GpuStatus> {

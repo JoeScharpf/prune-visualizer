@@ -244,10 +244,7 @@ export default function App() {
   const [result, setResult] = useState<InferResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [gpu, setGpu] = useState<GpuStatus>({
-    phase: "unknown",
-    model: null,
-  });
+  const [gpu, setGpu] = useState<GpuStatus>({ phase: "unknown" });
 
   useEffect(() => {
     let alive = true;
@@ -256,7 +253,7 @@ export default function App() {
         const s = await getGpuStatus();
         if (alive) setGpu(s);
       } catch {
-        if (alive) setGpu({ phase: "unknown", model: null });
+        if (alive) setGpu({ phase: "unknown" });
       }
     };
     poll();
@@ -274,8 +271,8 @@ export default function App() {
         setGpu({ ...gpu, phase: "stopping" });
         setGpu(await stopGpu());
       } else {
-        setGpu({ phase: "starting", model });
-        setGpu(await startGpu(model));
+        setGpu({ phase: "starting" });
+        setGpu(await startGpu());
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -295,9 +292,10 @@ export default function App() {
     }
   };
 
-  // The method (and its knobs) apply per request, so only the model has
-  // to match the running server.
-  const serverMatches = gpu.phase === "ready" && gpu.model === model;
+  // All model servers run concurrently and the method (and its knobs)
+  // applies per request, so a model is usable the moment its own server
+  // is healthy — even while others are still starting.
+  const serverMatches = gpu.models?.[model] === "ready";
 
   return (
     <div className="min-h-screen flex flex-col">
