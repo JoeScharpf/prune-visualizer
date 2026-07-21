@@ -133,7 +133,9 @@ function Results({
                 ? "HiPrune++"
                 : md?.method === "dart"
                   ? "DART"
-                  : "HiPrune"}
+                  : md?.method === "nprune"
+                    ? "NPrune"
+                    : "HiPrune"}
             {md &&
               ` — ${md.pruned.length}/${md.num_tokens} pruned, grid ${md.grid[0]}x${md.grid[1]}`}
           </figcaption>

@@ -57,6 +57,7 @@ export async function infer(
         beta: params.beta,
         pivot_image: params.pivotImage,
         pivot_text: params.pivotText,
+        stride: params.stride,
         with_baseline: withBaseline,
       }),
     })

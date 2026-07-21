@@ -1,5 +1,5 @@
 export type ModelKey = "qwen2_5_vl" | "llava_1_5" | "gemma4";
-export type MethodKey = "hiprune" | "hydart" | "hiprune_pp" | "dart";
+export type MethodKey = "hiprune" | "hydart" | "hiprune_pp" | "dart" | "nprune";
 
 export interface ModelInfo {
   key: ModelKey;
@@ -37,6 +37,8 @@ export interface Params {
   beta: number;
   pivotImage: number;
   pivotText: number;
+  /** NPrune lattice stride (1 = keep everything, 2 = ~25% kept). */
+  stride: number;
   prompt: string;
 }
 
@@ -48,6 +50,7 @@ export const DEFAULT_PARAMS: Params = {
   beta: 0.1,
   pivotImage: 4,
   pivotText: 4,
+  stride: 2,
   prompt: "Describe this image in detail.",
 };
 
@@ -58,8 +61,9 @@ export interface PruningMetadata {
   grid: [number, number];
   num_tokens: number;
   retention: number;
-  object_layer: number;
-  alpha: number;
+  /** Absent for methods without these knobs (NPrune). */
+  object_layer?: number;
+  alpha?: number;
   pruned: number[];
   anchors?: number[];
   buffers?: number[];
@@ -69,6 +73,10 @@ export interface PruningMetadata {
   prompt_tokens?: number[];
   /** DART image pivots (kept; text pivots are not image tokens). */
   pivots?: number[];
+  /** NPrune uniform-lattice picks. */
+  uniform?: number[];
+  /** NPrune lattice stride. */
+  stride?: number;
   beta?: number;
   lambda_seed?: number;
   lambda_pick?: number;
