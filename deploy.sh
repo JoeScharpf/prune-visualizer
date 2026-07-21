@@ -5,9 +5,11 @@
 # and restarts the backend service. Reads the target host from
 # deploy.env (gitignored): OVERSHOOT_SSH=user@host
 #
-# Note: this restarts only the backend. The model server is a separate
-# detached `vllm serve` process; vLLM-fork changes take effect on the
-# next Stop/Start GPU from the UI.
+# Note: this restarts only the backend. The model servers are separate
+# detached `vllm serve` processes. The UI's Stop puts them to *sleep*
+# (fast wake, but still running the old code) — after deploying
+# vLLM-fork changes, do a hard stop so the next Start cold-boots the
+# new code:  curl -X POST 'http://localhost:8300/api/gpu/stop?hard=true'
 set -euo pipefail
 cd "$(dirname "$0")"
 

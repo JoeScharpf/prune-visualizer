@@ -118,6 +118,7 @@ function GpuChip({ status }: { status: GpuStatus }) {
         : phase === "error"
           ? "#dc2626"
           : "#a8a29e";
+  const anySleeping = MODELS.some((m) => models[m.key] === "sleeping");
   const label =
     phase === "ready"
       ? readyCount === total
@@ -129,7 +130,9 @@ function GpuChip({ status }: { status: GpuStatus }) {
           ? "stopping…"
           : phase === "error"
             ? "error"
-            : "gpu stopped";
+            : anySleeping
+              ? "stopped — fast start"
+              : "gpu stopped";
   return (
     <span
       className="inline-flex items-center gap-2 border border-border bg-white px-3 h-9 min-w-0"
