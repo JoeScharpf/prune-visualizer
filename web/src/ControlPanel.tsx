@@ -248,10 +248,18 @@ export default function ControlPanel({
             { value: "dart", label: "DART" },
             { value: "nprune", label: "Lattice (uniform)" },
             { value: "checkered", label: "Checkered (~50%)" },
+            { value: "anchorprune", label: "AnchorPrune" },
           ]}
           onChange={onMethod}
         />
       </Field>
+
+      {method === "anchorprune" && (
+        <p className="text-xs text-neutral-400 -mt-2">
+          Protects the tokens most relevant to your prompt, then fills
+          the budget with important-but-novel tokens (ECCV'26).
+        </p>
+      )}
 
       {method === "checkered" && (
         <p className="text-xs text-neutral-400 -mt-2">
@@ -289,8 +297,12 @@ export default function ControlPanel({
           {/* Alpha and the object layer are fixed at serve time in the vLLM
               fork, so they are shown but not editable. DART uses neither
               (its selection runs on LLM layer states); Lattice and
-              Checkered use no scores at all. */}
-          {method !== "dart" && method !== "nprune" && method !== "checkered" && (
+              Checkered use no scores at all; AnchorPrune uses deep-layer
+              received attention, not the object layer or alpha. */}
+          {method !== "dart" &&
+            method !== "nprune" &&
+            method !== "checkered" &&
+            method !== "anchorprune" && (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Alpha">
                 <input
@@ -423,13 +435,15 @@ export default function ControlPanel({
             ? "HiPrune++ is prompt-aware"
             : method === "dart"
               ? "DART is prompt-aware"
-              : method === "hydart"
-                ? "HyDART is NOT prompt-aware"
-                : method === "nprune"
-                  ? "Lattice is NOT prompt-aware"
-                  : method === "checkered"
-                    ? "Checkered is NOT prompt-aware"
-                    : "HiPrune is NOT prompt-aware"
+              : method === "anchorprune"
+                ? "AnchorPrune is prompt-aware"
+                : method === "hydart"
+                  ? "HyDART is NOT prompt-aware"
+                  : method === "nprune"
+                    ? "Lattice is NOT prompt-aware"
+                    : method === "checkered"
+                      ? "Checkered is NOT prompt-aware"
+                      : "HiPrune is NOT prompt-aware"
         }
       >
         <textarea

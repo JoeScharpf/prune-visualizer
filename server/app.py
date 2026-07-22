@@ -102,7 +102,8 @@ MODELS = {
 
 ModelKey = Literal["qwen2_5_vl", "llava_1_5", "gemma4"]
 MethodKey = Literal[
-    "hiprune", "hydart", "hiprune_pp", "dart", "nprune", "checkered"
+    "hiprune", "hydart", "hiprune_pp", "dart", "nprune", "checkered",
+    "anchorprune",
 ]
 
 # Per-model cap on waiting for /health after a launch. Weights are
