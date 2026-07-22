@@ -270,7 +270,7 @@ export default function ControlPanel({
             checkered:
               "Keeps patches where (row + column) mod 2 = 0. Selection is deterministic and prompt-agnostic.",
             anchorprune:
-              "Protects the tokens most relevant to your prompt, then fills the budget with important-but-novel tokens (ECCV'26).",
+              "Protects the tokens most relevant to your prompt, then fills the budget with important-but-novel tokens.",
           }[method]
         }
       </p>
