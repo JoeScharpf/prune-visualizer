@@ -101,7 +101,9 @@ MODELS = {
 }
 
 ModelKey = Literal["qwen2_5_vl", "llava_1_5", "gemma4"]
-MethodKey = Literal["hiprune", "hydart", "hiprune_pp", "dart", "nprune"]
+MethodKey = Literal[
+    "hiprune", "hydart", "hiprune_pp", "dart", "nprune", "checkered"
+]
 
 # Per-model cap on waiting for /health after a launch. Weights are
 # cached on the box after the first start, so a healthy load is a few
@@ -609,6 +611,14 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
             body["token_pruning"] = 1.0 / (req.stride * req.stride)
             body["token_pruning_method"] = "nprune"
             body["token_pruning_params"] = {"stride": req.stride}
+        return body
+    if req.method == "checkered":
+        # Checkered has no knobs at all: it keeps the cells where
+        # (row + col) % 2 == 0, ~50%. token_pruning (nominal 0.5,
+        # float32-exact) only activates the pruning pipeline; actual
+        # retention (ceil(N/2)/N) comes back in the metadata.
+        body["token_pruning"] = 0.5
+        body["token_pruning_method"] = "checkered"
         return body
     if req.retention < 1.0:
         body["token_pruning"] = req.retention

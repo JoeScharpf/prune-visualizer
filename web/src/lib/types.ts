@@ -1,5 +1,11 @@
 export type ModelKey = "qwen2_5_vl" | "llava_1_5" | "gemma4";
-export type MethodKey = "hiprune" | "hydart" | "hiprune_pp" | "dart" | "nprune";
+export type MethodKey =
+  | "hiprune"
+  | "hydart"
+  | "hiprune_pp"
+  | "dart"
+  | "nprune"
+  | "checkered";
 
 export interface ModelInfo {
   key: ModelKey;

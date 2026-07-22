@@ -135,7 +135,9 @@ function Results({
                   ? "DART"
                   : md?.method === "nprune"
                     ? "Lattice"
-                    : "HiPrune"}
+                    : md?.method === "checkered"
+                      ? "Checkered"
+                      : "HiPrune"}
             {md &&
               ` — ${md.pruned.length}/${md.num_tokens} pruned, grid ${md.grid[0]}x${md.grid[1]}`}
           </figcaption>
