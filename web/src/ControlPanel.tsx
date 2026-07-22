@@ -254,19 +254,26 @@ export default function ControlPanel({
         />
       </Field>
 
-      {method === "anchorprune" && (
-        <p className="text-xs text-neutral-400 -mt-2">
-          Protects the tokens most relevant to your prompt, then fills
-          the budget with important-but-novel tokens (ECCV'26).
-        </p>
-      )}
-
-      {method === "checkered" && (
-        <p className="text-xs text-neutral-400 -mt-2">
-          Keeps patches where (row + column) mod 2 = 0. Selection is
-          deterministic and prompt-agnostic.
-        </p>
-      )}
+      <p className="text-xs text-neutral-400 -mt-2">
+        {
+          {
+            hiprune:
+              "Keeps high-attention object tokens and their neighbors, plus deep-layer register tokens. Prompt-agnostic.",
+            hydart:
+              "HiPrune anchors and buffers, then fills the budget with diversity picks that avoid duplicating what is already kept. Prompt-agnostic.",
+            hiprune_pp:
+              "Standard HiPrune, then adds the visual tokens most similar to your prompt on top of the base budget.",
+            dart:
+              "Picks image and text pivots from early LLM attention, then keeps tokens least similar to those pivots. Prompt-aware.",
+            nprune:
+              "Keeps every stride-th row and column on a uniform lattice. Deterministic and prompt-agnostic.",
+            checkered:
+              "Keeps patches where (row + column) mod 2 = 0. Selection is deterministic and prompt-agnostic.",
+            anchorprune:
+              "Protects the tokens most relevant to your prompt, then fills the budget with important-but-novel tokens (ECCV'26).",
+          }[method]
+        }
+      </p>
 
       {/* Lattice's keep count is stride-implied (uniform lattice), so the
           retention slider does not apply; the stride select lives in
