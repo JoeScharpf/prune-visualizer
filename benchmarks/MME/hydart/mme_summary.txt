@@ -1,0 +1,8 @@
+MME | google/gemma-4-e4b-it | method hydart | 2374 questions (full benchmark)
+
+    config  req keep  eff keep  retained  accuracy  perception  cognition  invalid
+----------------------------------------------------------------------------------
+      0.75      0.75     0.751     196.6     0.662      1317.2      518.9      240
+      0.50      0.50     0.500     131.0     0.642      1283.0      482.9      271
+      0.25      0.25     0.249      65.3     0.579      1151.0      426.1      398
+      0.14      0.14     0.139      36.5     0.532      1004.1      316.8      468

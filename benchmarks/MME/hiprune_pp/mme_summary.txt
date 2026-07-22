@@ -1,0 +1,8 @@
+MME | google/gemma-4-e4b-it | method hiprune_pp | 2374 questions (full benchmark)
+
+    config  req keep  eff keep  retained  accuracy  perception  cognition  invalid
+----------------------------------------------------------------------------------
+      0.75      0.75     0.826     216.4     0.663      1331.0      535.7      252
+      0.50      0.50     0.550     144.1     0.631      1250.5      488.2      302
+      0.25      0.25     0.275      72.1     0.566      1078.3      376.1      418
+      0.14      0.14     0.155      40.5     0.511       915.8      348.2      518

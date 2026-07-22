@@ -1,0 +1,5 @@
+MME | google/gemma-4-e4b-it | method baseline | 2374 questions (full benchmark)
+
+    config  req keep  eff keep  retained  accuracy  perception  cognition  invalid
+----------------------------------------------------------------------------------
+  baseline      1.00     1.000         —     0.666      1353.1      517.9      247

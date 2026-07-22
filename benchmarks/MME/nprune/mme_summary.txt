@@ -1,0 +1,5 @@
+MME | google/gemma-4-e4b-it | method nprune | 2374 questions (full benchmark)
+
+    config  req keep  eff keep  retained  accuracy  perception  cognition  invalid
+----------------------------------------------------------------------------------
+   stride2      0.25     0.264      69.1     0.586      1085.0      416.4      372
