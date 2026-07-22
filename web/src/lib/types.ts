@@ -5,7 +5,8 @@ export type MethodKey =
   | "hiprune_pp"
   | "dart"
   | "nprune"
-  | "checkered";
+  | "checkered"
+  | "anchorprune";
 
 export interface ModelInfo {
   key: ModelKey;
@@ -83,6 +84,14 @@ export interface PruningMetadata {
   uniform?: number[];
   /** Lattice stride. */
   stride?: number;
+  /** AnchorPrune importance-weighted novelty picks (pick order);
+   * `anchors` doubles as its protected relevance anchor. */
+  expansion?: number[];
+  /** AnchorPrune effective Stage-1 K_min and novelty threshold. */
+  anchor_kmin?: number;
+  tau?: number;
+  /** AnchorPrune: prompt tokens that guided Stage 1 (0 = no prompt). */
+  num_prompt_tokens?: number;
   beta?: number;
   lambda_seed?: number;
   lambda_pick?: number;

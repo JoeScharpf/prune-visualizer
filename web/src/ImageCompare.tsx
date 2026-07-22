@@ -39,6 +39,24 @@ function keptCategories(md: PruningMetadata): Category[] {
       { name: "diverse", indices: md.diverse ?? [], color: DIVERSE, ranked: true },
     ];
   }
+  // AnchorPrune: `expansion` is its distinguishing field (plain HiPrune
+  // also reports `anchors`).
+  if (md.method === "anchorprune" || md.expansion) {
+    return [
+      {
+        name: "anchors",
+        indices: md.anchors ?? [],
+        color: ANCHOR,
+        ranked: true,
+      },
+      {
+        name: "expansion",
+        indices: md.expansion ?? [],
+        color: DIVERSE,
+        ranked: true,
+      },
+    ];
+  }
   const cats: Category[] = [
     { name: "anchors", indices: md.anchors ?? [], color: ANCHOR, ranked: true },
     { name: "buffers", indices: md.buffers ?? [], color: BUFFER, ranked: false },
