@@ -21,8 +21,9 @@ interface Category {
 
 /** All kept-token categories in draw order, per method. */
 function keptCategories(md: PruningMetadata): Category[] {
-  if (md.method === "nprune" || md.uniform) {
-    // A single unranked category: the lattice has no scores or order.
+  if (md.method === "nprune" || md.method === "checkered" || md.uniform) {
+    // A single unranked category: the deterministic patterns (lattice,
+    // checkerboard) have no scores or order.
     return [
       {
         name: "uniform",

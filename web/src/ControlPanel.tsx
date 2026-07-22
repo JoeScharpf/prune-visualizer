@@ -247,15 +247,23 @@ export default function ControlPanel({
             { value: "hiprune_pp", label: "HiPrune++" },
             { value: "dart", label: "DART" },
             { value: "nprune", label: "Lattice (uniform)" },
+            { value: "checkered", label: "Checkered (~50%)" },
           ]}
           onChange={onMethod}
         />
       </Field>
 
+      {method === "checkered" && (
+        <p className="text-xs text-neutral-400 -mt-2">
+          Keeps patches where (row + column) mod 2 = 0. Selection is
+          deterministic and prompt-agnostic.
+        </p>
+      )}
+
       {/* Lattice's keep count is stride-implied (uniform lattice), so the
           retention slider does not apply; the stride select lives in
-          Advanced settings. */}
-      {method !== "nprune" && (
+          Advanced settings. Checkered is fixed at ~50% by definition. */}
+      {method !== "nprune" && method !== "checkered" && (
         <Field
           label="Retention ratio"
           hint={`keep ${(params.retention * 100).toFixed(1)}%`}
@@ -280,9 +288,9 @@ export default function ControlPanel({
         <div className="flex flex-col gap-6">
           {/* Alpha and the object layer are fixed at serve time in the vLLM
               fork, so they are shown but not editable. DART uses neither
-              (its selection runs on LLM layer states); Lattice uses no
-              scores at all. */}
-          {method !== "dart" && method !== "nprune" && (
+              (its selection runs on LLM layer states); Lattice and
+              Checkered use no scores at all. */}
+          {method !== "dart" && method !== "nprune" && method !== "checkered" && (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Alpha">
                 <input
@@ -419,7 +427,9 @@ export default function ControlPanel({
                 ? "HyDART is NOT prompt-aware"
                 : method === "nprune"
                   ? "Lattice is NOT prompt-aware"
-                  : "HiPrune is NOT prompt-aware"
+                  : method === "checkered"
+                    ? "Checkered is NOT prompt-aware"
+                    : "HiPrune is NOT prompt-aware"
         }
       >
         <textarea
