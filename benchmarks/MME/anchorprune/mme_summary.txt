@@ -1,0 +1,8 @@
+MME | google/gemma-4-e4b-it | method anchorprune | 2374 questions (full benchmark)
+
+    config  req keep  eff keep  retained  accuracy  perception  cognition  invalid
+----------------------------------------------------------------------------------
+      0.75      0.75     0.751     196.6     0.663      1336.3      516.8      252
+      0.50      0.50     0.500     131.0     0.636      1274.4      457.1      303
+      0.25      0.25     0.249      65.3     0.577      1141.4      390.7      420
+      0.14      0.14     0.139      36.5     0.532      1042.5      311.8      502

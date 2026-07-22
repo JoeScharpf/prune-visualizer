@@ -1,0 +1,5 @@
+MME | google/gemma-4-e4b-it | method checkered | 2374 questions (full benchmark)
+
+    config  req keep  eff keep  retained  accuracy  perception  cognition  invalid
+----------------------------------------------------------------------------------
+ checkered      0.50     0.500     131.0     0.635      1261.4      450.4      308
