@@ -1,0 +1,7 @@
+MMBench-EN-dev VANILLA (one-pass) | google/gemma-4-e4b-it | method nprune | 4329 prompts | circular_eval=false
+
+    config  req keep  eff keep  retained  accuracy parse_fail
+-------------------------------------------------------------
+   stride2      0.25     0.264      69.2     0.739      0.013
+  pred_dist: A=0.278, B=0.282, C=0.243, D=0.184, null=0.013
+  acc_by_gold: A=0.755, B=0.759, C=0.743, D=0.692

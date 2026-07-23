@@ -1,0 +1,7 @@
+MMBench-EN-dev VANILLA (one-pass) | google/gemma-4-e4b-it | method checkered | 4329 prompts | circular_eval=false
+
+    config  req keep  eff keep  retained  accuracy parse_fail
+-------------------------------------------------------------
+ checkered      0.50     0.500     131.1     0.779      0.014
+  pred_dist: A=0.276, B=0.276, C=0.242, D=0.192, null=0.014
+  acc_by_gold: A=0.800, B=0.801, C=0.769, D=0.738
