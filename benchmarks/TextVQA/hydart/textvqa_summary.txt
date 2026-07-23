@@ -1,0 +1,8 @@
+TextVQA val | google/gemma-4-e4b-it | method hydart | 5000 questions
+
+    config  req keep  eff keep  retained  accuracy     zero
+-----------------------------------------------------------
+      0.75      0.75     0.751     197.1     0.663     1407
+      0.50      0.50     0.500     131.3     0.635     1565
+      0.25      0.25     0.249      65.4     0.543     2041
+      0.14      0.14     0.139      36.5     0.457     2514

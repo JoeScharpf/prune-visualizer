@@ -1,0 +1,36 @@
+{
+  "dataset": "lmms-lab/textvqa (validation)",
+  "benchmark": "textvqa",
+  "model": "google/gemma-4-e4b-it",
+  "method": "baseline",
+  "num_samples": 5000,
+  "seed": 0,
+  "manifest": "/home/younes/hiprune/benchmarks/textvqa_methods/sample_manifest.json",
+  "population": {
+    "total_rows": 5000,
+    "rows_with_image": 5000,
+    "rows_without_image": 0,
+    "evaluated_rows": 5000
+  },
+  "results": [
+    {
+      "method": "baseline",
+      "label": "baseline",
+      "requested_keep": 1.0,
+      "ratio": 1.0,
+      "num_samples": 5000,
+      "accuracy": 0.68358,
+      "vqa_accuracy": 0.68358,
+      "zero_credit": 1309,
+      "mean_prompt_tokens": 292.8492,
+      "mean_original_tokens": null,
+      "mean_retained_tokens": null,
+      "median_retained_tokens": null,
+      "min_retained_tokens": null,
+      "max_retained_tokens": null,
+      "mean_effective_keep": 1.0,
+      "metadata_missing": 5000,
+      "accuracy_pass_seconds": 111.43533488298999
+    }
+  ]
+}

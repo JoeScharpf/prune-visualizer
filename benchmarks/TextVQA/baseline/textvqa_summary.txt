@@ -1,0 +1,5 @@
+TextVQA val | google/gemma-4-e4b-it | method baseline | 5000 questions
+
+    config  req keep  eff keep  retained  accuracy     zero
+-----------------------------------------------------------
+  baseline      1.00     1.000         —     0.684     1309
