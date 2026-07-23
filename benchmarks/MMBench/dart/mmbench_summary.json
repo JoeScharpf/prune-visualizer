@@ -1,0 +1,319 @@
+{
+  "dataset": "lmms-lab/MMBench en (dev)",
+  "benchmark": "mmbench",
+  "metric_name": "mmbench_en_dev_vanilla_accuracy",
+  "evaluation_protocol": "vanilla_one_pass",
+  "circular_eval": false,
+  "model": "google/gemma-4-e4b-it",
+  "method": "dart",
+  "num_samples": 4329,
+  "seed": 0,
+  "manifest": "/home/younes/hiprune/benchmarks/mmbench_methods/sample_manifest.json",
+  "population": {
+    "total_rows": 4329,
+    "rows_with_image": 4329,
+    "rows_without_image": 0,
+    "evaluated_rows": 4329
+  },
+  "circular_structure": {
+    "num_rows": 4329,
+    "unique_indices": 4329,
+    "indices_unique": true,
+    "num_main_index_lt_1e6": 1164,
+    "num_index_groups_mod_1e6": 1164,
+    "group_size_histogram": {
+      "2": 89,
+      "3": 149,
+      "4": 926
+    },
+    "num_multi_member_groups": 1164,
+    "likely_circular_expanded": true,
+    "example_group": {
+      "base_index": 241,
+      "member_indices": [
+        241,
+        1000241
+      ],
+      "same_question_text": true,
+      "choice_sets_differ": true
+    }
+  },
+  "results": [
+    {
+      "method": "dart",
+      "label": "0.75",
+      "requested_keep": 0.75,
+      "ratio": 0.75,
+      "num_samples": 4329,
+      "accuracy": 0.7893277893277894,
+      "metric_name": "mmbench_en_dev_vanilla_accuracy",
+      "evaluation_protocol": "vanilla_one_pass",
+      "circular_eval": false,
+      "invalid": 71,
+      "parse_failure_rate": 0.0164010164010164,
+      "failure_counts": {
+        "valid_but_incorrect": 841,
+        "parse_failure": 71
+      },
+      "per_category_accuracy": {
+        "action_recognition": 0.8790697674418605,
+        "attribute_comparison": 0.7943262411347518,
+        "attribute_recognition": 0.8901515151515151,
+        "celebrity_recognition": 0.797979797979798,
+        "function_reasoning": 0.875,
+        "future_prediction": 0.676923076923077,
+        "identity_reasoning": 0.9318181818181818,
+        "image_emotion": 0.75,
+        "image_quality": 0.5666666666666667,
+        "image_scene": 0.9705159705159705,
+        "image_style": 0.8726415094339622,
+        "image_topic": 0.9071428571428571,
+        "nature_relation": 0.6256983240223464,
+        "object_localization": 0.6285714285714286,
+        "ocr": 0.8910256410256411,
+        "physical_property_reasoning": 0.6894977168949772,
+        "physical_relation": 0.6595744680851063,
+        "social_relation": 0.8662790697674418,
+        "spatial_relationship": 0.519774011299435,
+        "structuralized_imagetext_understanding": 0.7163120567375887
+      },
+      "per_l2_category_accuracy": {
+        "attribute_reasoning": 0.8311874105865522,
+        "coarse_perception": 0.8494138863841298,
+        "finegrained_perception (cross-instance)": 0.7373358348968105,
+        "finegrained_perception (instance-level)": 0.7851458885941645,
+        "logic_reasoning": 0.7038834951456311,
+        "relation_reasoning": 0.7258426966292135
+      },
+      "accuracy_by_gold_letter": {
+        "A": 0.8013876843018214,
+        "B": 0.8152645273200347,
+        "C": 0.7866541353383458,
+        "D": 0.7466110531803962
+      },
+      "prediction_letter_distribution": {
+        "A": 0.2684222684222684,
+        "B": 0.27743127743127743,
+        "C": 0.24486024486024485,
+        "D": 0.19288519288519287,
+        "null": 0.0164010164010164
+      },
+      "mean_prompt_tokens": 281.57911757911756,
+      "mean_original_tokens": 262.2039732039732,
+      "mean_retained_tokens": 196.29383229383228,
+      "median_retained_tokens": 196,
+      "min_retained_tokens": 156,
+      "max_retained_tokens": 212,
+      "mean_effective_keep": 0.7487065042985949,
+      "metadata_missing": 0,
+      "accuracy_pass_seconds": 153.69513051398098
+    },
+    {
+      "method": "dart",
+      "label": "0.50",
+      "requested_keep": 0.5,
+      "ratio": 0.5,
+      "num_samples": 4329,
+      "accuracy": 0.7553707553707554,
+      "metric_name": "mmbench_en_dev_vanilla_accuracy",
+      "evaluation_protocol": "vanilla_one_pass",
+      "circular_eval": false,
+      "invalid": 83,
+      "parse_failure_rate": 0.01917301917301917,
+      "failure_counts": {
+        "valid_but_incorrect": 976,
+        "parse_failure": 83
+      },
+      "per_category_accuracy": {
+        "action_recognition": 0.8558139534883721,
+        "attribute_comparison": 0.6524822695035462,
+        "attribute_recognition": 0.7651515151515151,
+        "celebrity_recognition": 0.797979797979798,
+        "function_reasoning": 0.8486842105263158,
+        "future_prediction": 0.6846153846153846,
+        "identity_reasoning": 0.9090909090909091,
+        "image_emotion": 0.72,
+        "image_quality": 0.5333333333333333,
+        "image_scene": 0.9631449631449631,
+        "image_style": 0.8773584905660378,
+        "image_topic": 0.9214285714285714,
+        "nature_relation": 0.5810055865921788,
+        "object_localization": 0.5777777777777777,
+        "ocr": 0.8846153846153846,
+        "physical_property_reasoning": 0.6073059360730594,
+        "physical_relation": 0.5957446808510638,
+        "social_relation": 0.8430232558139535,
+        "spatial_relationship": 0.4915254237288136,
+        "structuralized_imagetext_understanding": 0.6843971631205674
+      },
+      "per_l2_category_accuracy": {
+        "attribute_reasoning": 0.7882689556509299,
+        "coarse_perception": 0.8394950405770965,
+        "finegrained_perception (cross-instance)": 0.6810506566604128,
+        "finegrained_perception (instance-level)": 0.7409372236958444,
+        "logic_reasoning": 0.6844660194174758,
+        "relation_reasoning": 0.6853932584269663
+      },
+      "accuracy_by_gold_letter": {
+        "A": 0.769297484822203,
+        "B": 0.7788378143972247,
+        "C": 0.7509398496240601,
+        "D": 0.7153284671532847
+      },
+      "prediction_letter_distribution": {
+        "A": 0.27003927003927003,
+        "B": 0.2806652806652807,
+        "C": 0.24000924000924,
+        "D": 0.1901131901131901,
+        "null": 0.01917301917301917
+      },
+      "mean_prompt_tokens": 217.05428505428506,
+      "mean_original_tokens": 262.2039732039732,
+      "mean_retained_tokens": 131.76899976899978,
+      "median_retained_tokens": 132,
+      "min_retained_tokens": 108,
+      "max_retained_tokens": 140,
+      "mean_effective_keep": 0.502569915957383,
+      "metadata_missing": 0,
+      "accuracy_pass_seconds": 151.84887801800505
+    },
+    {
+      "method": "dart",
+      "label": "0.25",
+      "requested_keep": 0.25,
+      "ratio": 0.25,
+      "num_samples": 4329,
+      "accuracy": 0.6842226842226842,
+      "metric_name": "mmbench_en_dev_vanilla_accuracy",
+      "evaluation_protocol": "vanilla_one_pass",
+      "circular_eval": false,
+      "invalid": 112,
+      "parse_failure_rate": 0.02587202587202587,
+      "failure_counts": {
+        "valid_but_incorrect": 1255,
+        "parse_failure": 112
+      },
+      "per_category_accuracy": {
+        "action_recognition": 0.8372093023255814,
+        "attribute_comparison": 0.44680851063829785,
+        "attribute_recognition": 0.7424242424242424,
+        "celebrity_recognition": 0.6590909090909091,
+        "function_reasoning": 0.7730263157894737,
+        "future_prediction": 0.6153846153846154,
+        "identity_reasoning": 0.8011363636363636,
+        "image_emotion": 0.605,
+        "image_quality": 0.42,
+        "image_scene": 0.9312039312039312,
+        "image_style": 0.8443396226415094,
+        "image_topic": 0.85,
+        "nature_relation": 0.5083798882681564,
+        "object_localization": 0.5174603174603175,
+        "ocr": 0.8269230769230769,
+        "physical_property_reasoning": 0.6118721461187214,
+        "physical_relation": 0.574468085106383,
+        "social_relation": 0.6918604651162791,
+        "spatial_relationship": 0.4011299435028249,
+        "structuralized_imagetext_understanding": 0.6524822695035462
+      },
+      "per_l2_category_accuracy": {
+        "attribute_reasoning": 0.7296137339055794,
+        "coarse_perception": 0.7763751127141569,
+        "finegrained_perception (cross-instance)": 0.5891181988742964,
+        "finegrained_perception (instance-level)": 0.6622458001768347,
+        "logic_reasoning": 0.6407766990291263,
+        "relation_reasoning": 0.5932584269662922
+      },
+      "accuracy_by_gold_letter": {
+        "A": 0.6834345186470078,
+        "B": 0.7172593235039029,
+        "C": 0.6954887218045113,
+        "D": 0.6329509906152242
+      },
+      "prediction_letter_distribution": {
+        "A": 0.2651882651882652,
+        "B": 0.2882882882882883,
+        "C": 0.24093324093324092,
+        "D": 0.17971817971817972,
+        "null": 0.02587202587202587
+      },
+      "mean_prompt_tokens": 152.41118041118042,
+      "mean_original_tokens": 262.2039732039732,
+      "mean_retained_tokens": 67.12589512589513,
+      "median_retained_tokens": 68,
+      "min_retained_tokens": 52,
+      "max_retained_tokens": 68,
+      "mean_effective_keep": 0.2560063390140954,
+      "metadata_missing": 0,
+      "accuracy_pass_seconds": 153.13355506098014
+    },
+    {
+      "method": "dart",
+      "label": "0.14",
+      "requested_keep": 0.14,
+      "ratio": 0.14,
+      "num_samples": 4329,
+      "accuracy": 0.5913605913605914,
+      "metric_name": "mmbench_en_dev_vanilla_accuracy",
+      "evaluation_protocol": "vanilla_one_pass",
+      "circular_eval": false,
+      "invalid": 274,
+      "parse_failure_rate": 0.0632940632940633,
+      "failure_counts": {
+        "valid_but_incorrect": 1495,
+        "parse_failure": 274
+      },
+      "per_category_accuracy": {
+        "action_recognition": 0.7209302325581395,
+        "attribute_comparison": 0.3829787234042553,
+        "attribute_recognition": 0.6628787878787878,
+        "celebrity_recognition": 0.5025252525252525,
+        "function_reasoning": 0.694078947368421,
+        "future_prediction": 0.5769230769230769,
+        "identity_reasoning": 0.5795454545454546,
+        "image_emotion": 0.47,
+        "image_quality": 0.2733333333333333,
+        "image_scene": 0.7862407862407862,
+        "image_style": 0.7830188679245284,
+        "image_topic": 0.8214285714285714,
+        "nature_relation": 0.40782122905027934,
+        "object_localization": 0.43492063492063493,
+        "ocr": 0.7948717948717948,
+        "physical_property_reasoning": 0.589041095890411,
+        "physical_relation": 0.48936170212765956,
+        "social_relation": 0.5290697674418605,
+        "spatial_relationship": 0.3559322033898305,
+        "structuralized_imagetext_understanding": 0.6737588652482269
+      },
+      "per_l2_category_accuracy": {
+        "attribute_reasoning": 0.6323319027181689,
+        "coarse_perception": 0.6636609558160504,
+        "finegrained_perception (cross-instance)": 0.5103189493433395,
+        "finegrained_perception (instance-level)": 0.5614500442086648,
+        "logic_reasoning": 0.6432038834951457,
+        "relation_reasoning": 0.47191011235955055
+      },
+      "accuracy_by_gold_letter": {
+        "A": 0.577623590633131,
+        "B": 0.6339982653946227,
+        "C": 0.599624060150376,
+        "D": 0.5474452554744526
+      },
+      "prediction_letter_distribution": {
+        "A": 0.2547932547932548,
+        "B": 0.28205128205128205,
+        "C": 0.23076923076923078,
+        "D": 0.1690921690921691,
+        "null": 0.0632940632940633
+      },
+      "mean_prompt_tokens": 121.27789327789328,
+      "mean_original_tokens": 262.2039732039732,
+      "mean_retained_tokens": 35.992607992607994,
+      "median_retained_tokens": 36,
+      "min_retained_tokens": 28,
+      "max_retained_tokens": 36,
+      "mean_effective_keep": 0.13733572268296626,
+      "metadata_missing": 0,
+      "accuracy_pass_seconds": 152.39622713497374
+    }
+  ]
+}

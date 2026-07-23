@@ -1,0 +1,7 @@
+MMBench-EN-dev VANILLA (one-pass) | google/gemma-4-e4b-it | method baseline | 4329 prompts | circular_eval=false
+
+    config  req keep  eff keep  retained  accuracy parse_fail
+-------------------------------------------------------------
+  baseline      1.00     1.000         —     0.796      0.019
+  pred_dist: A=0.263, B=0.278, C=0.242, D=0.198, null=0.019
+  acc_by_gold: A=0.806, B=0.820, C=0.788, D=0.762

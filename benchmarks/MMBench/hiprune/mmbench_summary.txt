@@ -1,0 +1,16 @@
+MMBench-EN-dev VANILLA (one-pass) | google/gemma-4-e4b-it | method hiprune | 4329 prompts | circular_eval=false
+
+    config  req keep  eff keep  retained  accuracy parse_fail
+-------------------------------------------------------------
+      0.75      0.75     0.750     196.7     0.792      0.015
+  pred_dist: A=0.265, B=0.276, C=0.247, D=0.196, null=0.015
+  acc_by_gold: A=0.797, B=0.812, C=0.790, D=0.765
+      0.50      0.50     0.500     131.1     0.764      0.015
+  pred_dist: A=0.271, B=0.277, C=0.246, D=0.190, null=0.015
+  acc_by_gold: A=0.778, B=0.785, C=0.758, D=0.728
+      0.25      0.25     0.250      65.5     0.715      0.016
+  pred_dist: A=0.277, B=0.281, C=0.244, D=0.182, null=0.016
+  acc_by_gold: A=0.739, B=0.738, C=0.714, D=0.658
+      0.14      0.14     0.139      36.6     0.675      0.017
+  pred_dist: A=0.282, B=0.285, C=0.243, D=0.173, null=0.017
+  acc_by_gold: A=0.701, B=0.702, C=0.676, D=0.609

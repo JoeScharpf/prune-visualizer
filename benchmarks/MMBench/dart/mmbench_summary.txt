@@ -1,0 +1,16 @@
+MMBench-EN-dev VANILLA (one-pass) | google/gemma-4-e4b-it | method dart | 4329 prompts | circular_eval=false
+
+    config  req keep  eff keep  retained  accuracy parse_fail
+-------------------------------------------------------------
+      0.75      0.75     0.749     196.3     0.789      0.016
+  pred_dist: A=0.268, B=0.277, C=0.245, D=0.193, null=0.016
+  acc_by_gold: A=0.801, B=0.815, C=0.787, D=0.747
+      0.50      0.50     0.503     131.8     0.755      0.019
+  pred_dist: A=0.270, B=0.281, C=0.240, D=0.190, null=0.019
+  acc_by_gold: A=0.769, B=0.779, C=0.751, D=0.715
+      0.25      0.25     0.256      67.1     0.684      0.026
+  pred_dist: A=0.265, B=0.288, C=0.241, D=0.180, null=0.026
+  acc_by_gold: A=0.683, B=0.717, C=0.695, D=0.633
+      0.14      0.14     0.137      36.0     0.591      0.063
+  pred_dist: A=0.255, B=0.282, C=0.231, D=0.169, null=0.063
+  acc_by_gold: A=0.578, B=0.634, C=0.600, D=0.547

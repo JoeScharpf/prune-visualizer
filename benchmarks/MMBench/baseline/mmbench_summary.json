@@ -1,0 +1,112 @@
+{
+  "dataset": "lmms-lab/MMBench en (dev)",
+  "benchmark": "mmbench",
+  "metric_name": "mmbench_en_dev_vanilla_accuracy",
+  "evaluation_protocol": "vanilla_one_pass",
+  "circular_eval": false,
+  "model": "google/gemma-4-e4b-it",
+  "method": "baseline",
+  "num_samples": 4329,
+  "seed": 0,
+  "manifest": "/home/younes/hiprune/benchmarks/mmbench_methods/sample_manifest.json",
+  "population": {
+    "total_rows": 4329,
+    "rows_with_image": 4329,
+    "rows_without_image": 0,
+    "evaluated_rows": 4329
+  },
+  "circular_structure": {
+    "num_rows": 4329,
+    "unique_indices": 4329,
+    "indices_unique": true,
+    "num_main_index_lt_1e6": 1164,
+    "num_index_groups_mod_1e6": 1164,
+    "group_size_histogram": {
+      "2": 89,
+      "3": 149,
+      "4": 926
+    },
+    "num_multi_member_groups": 1164,
+    "likely_circular_expanded": true,
+    "example_group": {
+      "base_index": 241,
+      "member_indices": [
+        241,
+        1000241
+      ],
+      "same_question_text": true,
+      "choice_sets_differ": true
+    }
+  },
+  "results": [
+    {
+      "method": "baseline",
+      "label": "baseline",
+      "requested_keep": 1.0,
+      "ratio": 1.0,
+      "num_samples": 4329,
+      "accuracy": 0.7955647955647955,
+      "metric_name": "mmbench_en_dev_vanilla_accuracy",
+      "evaluation_protocol": "vanilla_one_pass",
+      "circular_eval": false,
+      "invalid": 82,
+      "parse_failure_rate": 0.018942018942018943,
+      "failure_counts": {
+        "parse_failure": 82,
+        "valid_but_incorrect": 803
+      },
+      "per_category_accuracy": {
+        "action_recognition": 0.9023255813953488,
+        "attribute_comparison": 0.75177304964539,
+        "attribute_recognition": 0.8977272727272727,
+        "celebrity_recognition": 0.7878787878787878,
+        "function_reasoning": 0.8782894736842105,
+        "future_prediction": 0.6846153846153846,
+        "identity_reasoning": 0.9375,
+        "image_emotion": 0.74,
+        "image_quality": 0.5666666666666667,
+        "image_scene": 0.9705159705159705,
+        "image_style": 0.8820754716981132,
+        "image_topic": 0.9428571428571428,
+        "nature_relation": 0.7206703910614525,
+        "object_localization": 0.6349206349206349,
+        "ocr": 0.9038461538461539,
+        "physical_property_reasoning": 0.6940639269406392,
+        "physical_relation": 0.6276595744680851,
+        "social_relation": 0.872093023255814,
+        "spatial_relationship": 0.5254237288135594,
+        "structuralized_imagetext_understanding": 0.7198581560283688
+      },
+      "per_l2_category_accuracy": {
+        "attribute_reasoning": 0.8354792560801144,
+        "coarse_perception": 0.8539224526600541,
+        "finegrained_perception (cross-instance)": 0.7373358348968105,
+        "finegrained_perception (instance-level)": 0.7869142351900973,
+        "logic_reasoning": 0.7087378640776699,
+        "relation_reasoning": 0.7595505617977528
+      },
+      "accuracy_by_gold_letter": {
+        "A": 0.805724197745013,
+        "B": 0.8204683434518647,
+        "C": 0.7875939849624061,
+        "D": 0.762252346193952
+      },
+      "prediction_letter_distribution": {
+        "A": 0.26334026334026334,
+        "B": 0.2776622776622777,
+        "C": 0.24231924231924232,
+        "D": 0.19773619773619774,
+        "null": 0.018942018942018943
+      },
+      "mean_prompt_tokens": 347.4892584892585,
+      "mean_original_tokens": null,
+      "mean_retained_tokens": null,
+      "median_retained_tokens": null,
+      "min_retained_tokens": null,
+      "max_retained_tokens": null,
+      "mean_effective_keep": 1.0,
+      "metadata_missing": 4329,
+      "accuracy_pass_seconds": 102.67810771998484
+    }
+  ]
+}
