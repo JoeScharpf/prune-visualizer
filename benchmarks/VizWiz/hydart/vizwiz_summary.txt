@@ -1,0 +1,12 @@
+VizWiz-VQA val | google/gemma-4-e4b-it | method hydart | 4319 questions
+
+    config  req keep  eff keep  retained  accuracy     zero    unans
+--------------------------------------------------------------------
+      0.75      0.75     0.752     200.0     0.583     1422    0.474
+  category: number=0.531, other=0.436, unanswerable=0.871, yes/no=0.569
+      0.50      0.50     0.500     133.0     0.581     1421    0.508
+  category: number=0.498, other=0.432, unanswerable=0.877, yes/no=0.554
+      0.25      0.25     0.248      66.0     0.577     1414    0.586
+  category: number=0.477, other=0.415, unanswerable=0.905, yes/no=0.514
+      0.14      0.14     0.139      37.0     0.561     1480    0.643
+  category: number=0.456, other=0.385, unanswerable=0.917, yes/no=0.475

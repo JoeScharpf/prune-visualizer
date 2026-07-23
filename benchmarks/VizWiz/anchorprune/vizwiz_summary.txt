@@ -1,0 +1,12 @@
+VizWiz-VQA val | google/gemma-4-e4b-it | method anchorprune | 4319 questions
+
+    config  req keep  eff keep  retained  accuracy     zero    unans
+--------------------------------------------------------------------
+      0.75      0.75     0.752     200.0     0.582     1419    0.477
+  category: number=0.540, other=0.435, unanswerable=0.871, yes/no=0.566
+      0.50      0.50     0.500     133.0     0.583     1405    0.518
+  category: number=0.485, other=0.429, unanswerable=0.888, yes/no=0.566
+      0.25      0.25     0.248      66.0     0.564     1473    0.609
+  category: number=0.427, other=0.392, unanswerable=0.909, yes/no=0.528
+      0.14      0.14     0.139      37.0     0.547     1539    0.693
+  category: number=0.438, other=0.359, unanswerable=0.927, yes/no=0.477

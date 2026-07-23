@@ -1,0 +1,12 @@
+VizWiz-VQA val | google/gemma-4-e4b-it | method dart | 4319 questions
+
+    config  req keep  eff keep  retained  accuracy     zero    unans
+--------------------------------------------------------------------
+      0.75      0.75     0.737     196.0     0.588     1398    0.491
+  category: number=0.479, other=0.441, unanswerable=0.881, yes/no=0.554
+      0.50      0.50     0.496     132.0     0.589     1370    0.560
+  category: number=0.540, other=0.430, unanswerable=0.912, yes/no=0.518
+      0.25      0.25     0.256      68.0     0.569     1436    0.691
+  category: number=0.502, other=0.386, unanswerable=0.941, yes/no=0.469
+      0.14      0.14     0.135      36.0     0.542     1544    0.807
+  category: number=0.390, other=0.335, unanswerable=0.966, yes/no=0.418

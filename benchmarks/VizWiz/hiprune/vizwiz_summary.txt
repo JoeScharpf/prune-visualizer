@@ -1,0 +1,12 @@
+VizWiz-VQA val | google/gemma-4-e4b-it | method hiprune | 4319 questions
+
+    config  req keep  eff keep  retained  accuracy     zero    unans
+--------------------------------------------------------------------
+      0.75      0.75     0.752     200.0     0.582     1430    0.483
+  category: number=0.504, other=0.433, unanswerable=0.877, yes/no=0.552
+      0.50      0.50     0.500     133.0     0.577     1439    0.519
+  category: number=0.567, other=0.422, unanswerable=0.881, yes/no=0.566
+      0.25      0.25     0.248      66.0     0.553     1527    0.614
+  category: number=0.475, other=0.375, unanswerable=0.906, yes/no=0.526
+      0.14      0.14     0.139      37.0     0.538     1581    0.693
+  category: number=0.404, other=0.348, unanswerable=0.915, yes/no=0.505
