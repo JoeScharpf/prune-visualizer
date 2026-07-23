@@ -1,0 +1,43 @@
+{
+  "dataset": "lmms-lab/VizWiz-VQA (val)",
+  "benchmark": "vizwiz",
+  "model": "google/gemma-4-e4b-it",
+  "method": "baseline",
+  "num_samples": 4319,
+  "seed": 0,
+  "manifest": "/home/younes/hiprune/benchmarks/vizwiz_methods/sample_manifest.json",
+  "population": {
+    "total_rows": 4319,
+    "rows_with_image": 4319,
+    "rows_without_image": 0,
+    "evaluated_rows": 4319
+  },
+  "results": [
+    {
+      "method": "baseline",
+      "label": "baseline",
+      "requested_keep": 1.0,
+      "ratio": 1.0,
+      "num_samples": 4319,
+      "accuracy": 0.5813845797638342,
+      "vqa_accuracy": 0.5813845797638342,
+      "zero_credit": 1437,
+      "unanswerable_pred_rate": 0.4554294975688817,
+      "per_category_accuracy": {
+        "number": 0.5041666666666667,
+        "other": 0.4389446302489781,
+        "unanswerable": 0.8612996389891697,
+        "yes/no": 0.5779487179487179
+      },
+      "mean_prompt_tokens": 311.7642972910396,
+      "mean_original_tokens": null,
+      "mean_retained_tokens": null,
+      "median_retained_tokens": null,
+      "min_retained_tokens": null,
+      "max_retained_tokens": null,
+      "mean_effective_keep": 1.0,
+      "metadata_missing": 4319,
+      "accuracy_pass_seconds": 130.22454131400445
+    }
+  ]
+}

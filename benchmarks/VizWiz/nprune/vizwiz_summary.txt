@@ -1,0 +1,6 @@
+VizWiz-VQA val | google/gemma-4-e4b-it | method nprune | 4319 questions
+
+    config  req keep  eff keep  retained  accuracy     zero    unans
+--------------------------------------------------------------------
+   stride2      0.25     0.263      70.0     0.581     1398    0.621
+  category: number=0.419, other=0.407, unanswerable=0.932, yes/no=0.520

@@ -1,0 +1,6 @@
+VizWiz-VQA val | google/gemma-4-e4b-it | method checkered | 4319 questions
+
+    config  req keep  eff keep  retained  accuracy     zero    unans
+--------------------------------------------------------------------
+ checkered      0.50     0.500     133.0     0.583     1409    0.511
+  category: number=0.498, other=0.426, unanswerable=0.890, yes/no=0.582

@@ -1,0 +1,6 @@
+VizWiz-VQA val | google/gemma-4-e4b-it | method baseline | 4319 questions
+
+    config  req keep  eff keep  retained  accuracy     zero    unans
+--------------------------------------------------------------------
+  baseline      1.00     1.000         —     0.581     1437    0.455
+  category: number=0.504, other=0.439, unanswerable=0.861, yes/no=0.578
