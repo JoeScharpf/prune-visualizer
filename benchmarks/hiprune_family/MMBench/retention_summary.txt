@@ -1,0 +1,20 @@
+MMBENCH method sweep | google/gemma-4-e4b-it
+(keep ratio = fraction of visual tokens RETAINED; effective keep from token_pruning_metadata)
+
+      method     config  req keep  eff keep  orig tok  retained  accuracy     drop
+----------------------------------------------------------------------------------
+    baseline   baseline      1.00     1.000         —         —     0.796   +0.000
+   checkered  checkered      0.50     0.500     262.2     131.1     0.779   -0.017
+     hiprune       0.75      0.75     0.750     262.2     196.7     0.792   -0.003
+     hiprune       0.50      0.50     0.500     262.2     131.1     0.764   -0.032
+     hiprune       0.25      0.25     0.250     262.2      65.5     0.715   -0.081
+     hiprune       0.14      0.14     0.139     262.2      36.6     0.675   -0.121
+  hiprune_pp       0.75      0.75     0.826     262.2     216.5     0.794   -0.001
+  hiprune_pp       0.50      0.50     0.550     262.2     144.2     0.771   -0.024
+  hiprune_pp       0.25      0.25     0.275     262.2      72.2     0.728   -0.068
+  hiprune_pp       0.14      0.14     0.155     262.2      40.6     0.689   -0.106
+      hydart       0.75      0.75     0.750     262.2     196.7     0.793   -0.003
+      hydart       0.50      0.50     0.500     262.2     131.1     0.778   -0.018
+      hydart       0.25      0.25     0.250     262.2      65.5     0.745   -0.051
+      hydart       0.14      0.14     0.139     262.2      36.6     0.719   -0.077
+      nprune    stride2      0.25     0.264     262.2      69.2     0.739   -0.056
