@@ -1,0 +1,8 @@
+TextVQA val | google/gemma-4-e4b-it | method hiprune_pp | 5000 questions
+
+    config  req keep  eff keep  retained  accuracy     zero
+-----------------------------------------------------------
+      0.75      0.75     0.826     217.0     0.672     1366
+      0.50      0.50     0.550     144.3     0.617     1643
+      0.25      0.25     0.275      72.3     0.503     2254
+      0.14      0.14     0.154      40.5     0.403     2789

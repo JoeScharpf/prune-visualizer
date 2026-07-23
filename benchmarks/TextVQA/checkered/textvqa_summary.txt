@@ -1,0 +1,5 @@
+TextVQA val | google/gemma-4-e4b-it | method checkered | 5000 questions
+
+    config  req keep  eff keep  retained  accuracy     zero
+-----------------------------------------------------------
+ checkered      0.50     0.500     131.3     0.568     1927

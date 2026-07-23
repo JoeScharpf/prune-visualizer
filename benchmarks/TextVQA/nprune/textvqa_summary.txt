@@ -1,0 +1,5 @@
+TextVQA val | google/gemma-4-e4b-it | method nprune | 5000 questions
+
+    config  req keep  eff keep  retained  accuracy     zero
+-----------------------------------------------------------
+   stride2      0.25     0.264      69.4     0.395     2826
