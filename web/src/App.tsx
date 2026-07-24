@@ -196,15 +196,33 @@ function CompareStage({
 }) {
   const md = result?.metadata ?? null;
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [heatLayerIdx, setHeatLayerIdx] = useState(0);
   // Layout (2-col) follows `result`; motion enter is a separate flip.
   const [entered, setEntered] = useState(false);
+
+  const defaultHeatLayer = useCallback((metadata: InferResult["metadata"]) => {
+    if (!metadata?.scores) return 0;
+    const idx = metadata.scores.vision_layer_object_idx;
+    const layers = metadata.scores.vision_layers;
+    if (
+      typeof idx === "number" &&
+      layers &&
+      idx >= 0 &&
+      idx < layers.length
+    ) {
+      return idx;
+    }
+    return 0;
+  }, []);
 
   useEffect(() => {
     if (!result) {
       setEntered(false);
       setShowHeatmap(false);
+      setHeatLayerIdx(0);
       return;
     }
+    setHeatLayerIdx(defaultHeatLayer(result.metadata));
     setEntered(false);
     const prefersReduced =
       typeof window !== "undefined" &&
@@ -217,7 +235,15 @@ function CompareStage({
       requestAnimationFrame(() => setEntered(true));
     });
     return () => cancelAnimationFrame(id);
-  }, [result]);
+  }, [result, defaultHeatLayer]);
+
+  const layerCount = md?.scores?.vision_layers?.length ?? 0;
+  const heatmapCaption =
+    showHeatmap && md?.scores?.object_layer
+      ? layerCount > 0
+        ? ` — layer ${heatLayerIdx + 1}/${layerCount}, grid ${md.grid[0]}x${md.grid[1]}`
+        : ` — object-layer attention, grid ${md.grid[0]}x${md.grid[1]}`
+      : null;
 
   return (
     <div
@@ -252,10 +278,7 @@ function CompareStage({
             {md &&
               !showHeatmap &&
               ` — ${md.pruned.length}/${md.num_tokens} pruned, grid ${md.grid[0]}x${md.grid[1]}`}
-            {md &&
-              showHeatmap &&
-              md.scores?.object_layer &&
-              ` — object-layer attention, grid ${md.grid[0]}x${md.grid[1]}`}
+            {heatmapCaption}
           </figcaption>
           {md ? (
             <>
@@ -265,12 +288,15 @@ function CompareStage({
                   metadata={md}
                   model={model}
                   showHeatmap={showHeatmap}
+                  heatLayerIdx={heatLayerIdx}
                 />
               </div>
               <OverlayLegend
                 metadata={md}
                 showHeatmap={showHeatmap}
                 onToggleHeatmap={setShowHeatmap}
+                heatLayerIdx={heatLayerIdx}
+                onHeatLayer={setHeatLayerIdx}
               />
             </>
           ) : (

@@ -208,11 +208,14 @@ export function OverlayCanvas({
   metadata,
   model,
   showHeatmap = false,
+  heatLayerIdx = 0,
 }: {
   imageUrl: string;
   metadata: PruningMetadata;
   model: ModelKey;
   showHeatmap?: boolean;
+  /** 0-based vision-encoder layer when scrubbing vision_layers. */
+  heatLayerIdx?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hover, setHover] = useState<{
@@ -221,7 +224,15 @@ export function OverlayCanvas({
     yPct: number;
   } | null>(null);
   const cellIndex = useMemo(() => buildCellIndex(metadata), [metadata]);
-  const heatScores = metadata.scores?.object_layer;
+  const visionLayers = metadata.scores?.vision_layers;
+  const layerScores =
+    visionLayers &&
+    visionLayers.length > 0 &&
+    heatLayerIdx >= 0 &&
+    heatLayerIdx < visionLayers.length
+      ? visionLayers[heatLayerIdx]
+      : undefined;
+  const heatScores = layerScores ?? metadata.scores?.object_layer;
   const canHeatmap = Boolean(
     heatScores && heatScores.length === metadata.num_tokens
   );
@@ -290,7 +301,11 @@ export function OverlayCanvas({
   };
 
   const info = hover ? cellIndex.get(hover.idx) : undefined;
-  const objScore = hover ? metadata.scores?.object_layer?.[hover.idx] : undefined;
+  const layerAttn = hover && heatScores ? heatScores[hover.idx] : undefined;
+  const objScore =
+    hover && !layerScores
+      ? metadata.scores?.object_layer?.[hover.idx]
+      : undefined;
   const deepScore = hover ? metadata.scores?.deep_layer?.[hover.idx] : undefined;
   const simScore = hover ? metadata.scores?.similarity?.[hover.idx] : undefined;
   const textSimScore = hover
@@ -354,6 +369,11 @@ export function OverlayCanvas({
               {info.rank != null && ` — rank ${info.rank}/${info.rankOf}`}
             </span>
           )}
+          {layerAttn != null && layerScores && (
+            <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
+              layer {heatLayerIdx + 1} attn: {fmtScore(layerAttn, uniform)}
+            </span>
+          )}
           {objScore != null && (
             <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
               obj attn: {fmtScore(objScore, uniform)}
@@ -394,42 +414,70 @@ export function OverlayLegend({
   metadata,
   showHeatmap,
   onToggleHeatmap,
+  heatLayerIdx = 0,
+  onHeatLayer,
 }: {
   metadata: PruningMetadata;
   showHeatmap: boolean;
   onToggleHeatmap: (next: boolean) => void;
+  heatLayerIdx?: number;
+  onHeatLayer?: (idx: number) => void;
 }) {
   const canHeatmap = Boolean(
     metadata.scores?.object_layer &&
       metadata.scores.object_layer.length === metadata.num_tokens
   );
+  const visionLayers = metadata.scores?.vision_layers;
+  const layerCount = visionLayers?.length ?? 0;
+  const canScrub = Boolean(
+    layerCount > 1 &&
+      visionLayers?.every((row) => row.length === metadata.num_tokens)
+  );
 
   if (showHeatmap && canHeatmap) {
     return (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <label className="inline-flex items-center gap-2 demo-label text-fg cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="accent-fg"
-            checked={showHeatmap}
-            onChange={(e) => onToggleHeatmap(e.target.checked)}
-          />
-          Heatmap
-        </label>
-        <span className="inline-flex items-center gap-1.5 demo-label text-fg-muted">
-          <span
-            aria-hidden
-            className="inline-block"
-            style={{
-              width: 48,
-              height: 8,
-              borderRadius: 1,
-              background:
-                "linear-gradient(90deg, rgba(30,40,120,0.3), rgba(255,180,40,0.75), rgba(255,40,20,0.85))",
-            }}
-          />
-          low → high attention
-        </span>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <label className="inline-flex items-center gap-2 demo-label text-fg cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="accent-fg"
+              checked={showHeatmap}
+              onChange={(e) => onToggleHeatmap(e.target.checked)}
+            />
+            Heatmap
+          </label>
+          <span className="inline-flex items-center gap-1.5 demo-label text-fg-muted">
+            <span
+              aria-hidden
+              className="inline-block"
+              style={{
+                width: 48,
+                height: 8,
+                borderRadius: 1,
+                background:
+                  "linear-gradient(90deg, rgba(30,40,120,0.3), rgba(255,180,40,0.75), rgba(255,40,20,0.85))",
+              }}
+            />
+            low → high attention
+          </span>
+        </div>
+        {canScrub && onHeatLayer && (
+          <label className="flex flex-col gap-1.5 max-w-md">
+            <span className="demo-label text-fg-muted">
+              Early — layer {heatLayerIdx + 1}/{layerCount} — Late
+            </span>
+            <input
+              type="range"
+              className="hp-range"
+              min={0}
+              max={layerCount - 1}
+              step={1}
+              value={Math.min(heatLayerIdx, layerCount - 1)}
+              onChange={(e) => onHeatLayer(Number(e.target.value))}
+            />
+          </label>
+        )}
       </div>
     );
   }

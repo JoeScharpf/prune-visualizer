@@ -107,6 +107,10 @@ export interface PruningMetadata {
   scores?: {
     object_layer?: number[];
     deep_layer?: number[];
+    /** Soft-token attention per vision-encoder layer (early→late). */
+    vision_layers?: number[][];
+    /** 0-based index into vision_layers for the object/mid layer. */
+    vision_layer_object_idx?: number;
     similarity?: number[];
     text_similarity?: number[];
     key_norm?: number[];
