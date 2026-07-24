@@ -13,7 +13,7 @@ import type {
   ModelKey,
   Params,
 } from "./lib/types";
-import { DEFAULT_PARAMS, MODELS } from "./lib/types";
+import { DEFAULT_PARAMS } from "./lib/types";
 
 function useImageFileInput(onImage: (dataUrl: string) => void) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -377,7 +377,7 @@ function ResultsDetails({ result }: { result: InferResult }) {
 }
 
 export default function App() {
-  const [model, setModel] = useState<ModelKey>("qwen2_5_vl");
+  const [model] = useState<ModelKey>("gemma4");
   const [method, setMethod] = useState<MethodKey>("hiprune");
   const [params, setParams] = useState<Params>(DEFAULT_PARAMS);
   const [withBaseline, setWithBaseline] = useState(false);
@@ -444,6 +444,15 @@ export default function App() {
     setError(null);
   }, []);
 
+  // Keep the compare view frozen until the next Run — switching method
+  // would otherwise redraw the old overlay with a mismatched category
+  // set and look like an abrupt change.
+  const handleMethod = useCallback((m: MethodKey) => {
+    setMethod(m);
+    setResult(null);
+    setError(null);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Nav />
@@ -463,7 +472,7 @@ export default function App() {
               {imageUrl && (
                 <CompareStage
                   imageUrl={imageUrl}
-                  model={(MODELS.find((m) => m.key === model) ?? MODELS[0]).key}
+                  model={model}
                   result={result}
                   onReplaceImage={handleImage}
                 />
@@ -488,8 +497,7 @@ export default function App() {
                 busy={busy}
                 canRun={imageUrl != null && serverMatches}
                 withBaseline={withBaseline}
-                onModel={setModel}
-                onMethod={setMethod}
+                onMethod={handleMethod}
                 onParams={setParams}
                 onStartStop={handleStartStop}
                 onRun={handleRun}

@@ -162,7 +162,6 @@ export default function ControlPanel({
   busy,
   canRun,
   withBaseline,
-  onModel,
   onMethod,
   onParams,
   onStartStop,
@@ -176,7 +175,6 @@ export default function ControlPanel({
   busy: boolean;
   canRun: boolean;
   withBaseline: boolean;
-  onModel: (m: ModelKey) => void;
   onMethod: (m: MethodKey) => void;
   onParams: (p: Params) => void;
   onStartStop: () => void;
@@ -224,15 +222,11 @@ export default function ControlPanel({
             : running && modelPhase === "error"
               ? "failed to start"
               : modelPhase === "ready"
-                ? "switches instantly"
+                ? "ready"
                 : undefined
         }
       >
-        <Select
-          value={model}
-          options={MODELS.map((m) => ({ value: m.key, label: m.label }))}
-          onChange={onModel}
-        />
+        <div className="text-sm font-medium text-fg">Gemma 4 E4B</div>
       </Field>
 
       <Field
