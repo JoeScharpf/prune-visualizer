@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChangeEvent, DragEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Footer, Nav } from "./Chrome";
@@ -14,16 +15,8 @@ import type {
 } from "./lib/types";
 import { DEFAULT_PARAMS, MODELS } from "./lib/types";
 
-function DropZone({
-  onImage,
-  hasImage,
-}: {
-  onImage: (dataUrl: string) => void;
-  hasImage: boolean;
-}) {
-  const [dragging, setDragging] = useState(false);
+function useImageFileInput(onImage: (dataUrl: string) => void) {
   const inputRef = useRef<HTMLInputElement>(null);
-
   const readFile = useCallback(
     (file: File) => {
       const reader = new FileReader();
@@ -32,49 +25,130 @@ function DropZone({
     },
     [onImage]
   );
+  const openPicker = () => inputRef.current?.click();
+  const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) readFile(file);
+    e.target.value = "";
+  };
+  const takeDrop = (e: DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) readFile(file);
+  };
+  return { inputRef, openPicker, onInputChange, takeDrop };
+}
+
+/** Large dashed upload surface — empty state only. */
+function EmptyDropZone({ onImage }: { onImage: (dataUrl: string) => void }) {
+  const [dragging, setDragging] = useState(false);
+  const { inputRef, openPicker, onInputChange, takeDrop } =
+    useImageFileInput(onImage);
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => inputRef.current?.click()}
-      onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+      onClick={openPicker}
+      onKeyDown={(e) => e.key === "Enter" && openPicker()}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={(e) => {
-        e.preventDefault();
         setDragging(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file && file.type.startsWith("image/")) readFile(file);
+        takeDrop(e);
       }}
       className={
         "flex flex-col items-center justify-center gap-2 border border-dashed cursor-pointer transition-colors " +
         (dragging ? "border-accent bg-orange-50" : "border-stone-300 bg-white")
       }
-      style={{
-        borderRadius: "var(--r-1)",
-        minHeight: hasImage ? 64 : 320,
-      }}
+      style={{ borderRadius: "var(--r-1)", minHeight: 320 }}
     >
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) readFile(file);
-          e.target.value = "";
-        }}
+        onChange={onInputChange}
       />
       <span className="text-sm text-fg-muted">
-        {hasImage
-          ? "Drop a new image or click to replace"
-          : "Drag and drop an image here, or click to upload"}
+        Drag and drop an image here, or click to upload
       </span>
+    </div>
+  );
+}
+
+/** Click / drop on an existing image to replace it. */
+function ImageReplaceTarget({
+  src,
+  alt,
+  onImage,
+  className = "w-full h-auto border border-border",
+}: {
+  src: string;
+  alt: string;
+  onImage: (dataUrl: string) => void;
+  className?: string;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const { inputRef, openPicker, onInputChange, takeDrop } =
+    useImageFileInput(onImage);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label="Replace image — click or drop a new file"
+      title="Click or drop to replace"
+      onClick={openPicker}
+      onKeyDown={(e) => e.key === "Enter" && openPicker()}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        setDragging(false);
+        takeDrop(e);
+      }}
+      className={
+        "group relative block cursor-pointer overflow-hidden transition-shadow " +
+        (dragging ? "ring-2 ring-orange-500 ring-offset-2" : "")
+      }
+      style={{ borderRadius: "var(--r-1)" }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onInputChange}
+      />
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        style={{ borderRadius: "var(--r-1)", display: "block" }}
+        draggable={false}
+      />
+      <div
+        className={
+          "pointer-events-none absolute inset-0 flex items-end justify-center p-3 transition-opacity " +
+          (dragging
+            ? "opacity-100 bg-black/35"
+            : "opacity-0 group-hover:opacity-100 bg-black/25")
+        }
+        style={{ borderRadius: "var(--r-1)" }}
+      >
+        <span
+          className="demo-label text-white bg-black/55 px-2 py-1"
+          style={{ borderRadius: 2 }}
+        >
+          {dragging ? "Drop to replace" : "Click or drop to replace"}
+        </span>
+      </div>
     </div>
   );
 }
@@ -103,10 +177,12 @@ function Results({
   imageUrl,
   model,
   result,
+  onReplaceImage,
 }: {
   imageUrl: string;
   model: ModelKey;
   result: InferResult;
+  onReplaceImage: (dataUrl: string) => void;
 }) {
   const md = result.metadata;
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -135,11 +211,10 @@ function Results({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <figure className="flex flex-col gap-2">
           <figcaption className="demo-kicker text-fg-muted">Original</figcaption>
-          <img
+          <ImageReplaceTarget
             src={imageUrl}
             alt="original upload"
-            className="w-full h-auto border border-border"
-            style={{ borderRadius: "var(--r-1)" }}
+            onImage={onReplaceImage}
           />
         </figure>
         <figure className="flex flex-col gap-2">
@@ -324,6 +399,12 @@ export default function App() {
   // is healthy — even while others are still starting.
   const serverMatches = gpu.models?.[model] === "ready";
 
+  const handleImage = useCallback((dataUrl: string) => {
+    setImageUrl(dataUrl);
+    setResult(null);
+    setError(null);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Nav />
@@ -334,13 +415,13 @@ export default function App() {
           </h1>
           <div className="flex flex-col xl:flex-row gap-8 items-start">
             <section className="flex-1 w-full flex flex-col gap-5 min-w-0">
-              <DropZone onImage={(u) => setImageUrl(u)} hasImage={imageUrl != null} />
+              {!imageUrl && <EmptyDropZone onImage={handleImage} />}
               {imageUrl && !result && (
-                <img
+                <ImageReplaceTarget
                   src={imageUrl}
                   alt="uploaded"
+                  onImage={handleImage}
                   className="w-full max-w-xl h-auto border border-border"
-                  style={{ borderRadius: "var(--r-1)" }}
                 />
               )}
               {error && (
@@ -356,6 +437,7 @@ export default function App() {
                   imageUrl={imageUrl}
                   model={(MODELS.find((m) => m.key === model) ?? MODELS[0]).key}
                   result={result}
+                  onReplaceImage={handleImage}
                 />
               )}
             </section>
