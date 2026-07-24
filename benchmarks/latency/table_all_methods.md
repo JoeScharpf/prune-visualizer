@@ -1,0 +1,33 @@
+# Results on google/gemma-4-e4b-it — All methods
+
+MME is perception+cognition. Average is mean relative to Vanilla across MMB, MME, POPE, SQA$^{IMG}$, TextVQA, VizWiz. † HiPrune++ effective keep is higher because text-guided tokens are additive. POPE is a balanced subset (not necessarily full POPE). Gemma uses dynamic visual length (~262 tokens avg). Mean TTFT is the equal-weight macro-average of client-observed TTFT across the six benches (serial streaming, max_tokens=1); speedup is vs Vanilla. Bold Mean TTFT = lowest in the requested-retention block (effective retention may differ).
+
+| Method | Keep | MMB | MME | POPE | SQA | TextVQA | VizWiz | Average | Mean TTFT |
+|--------|------|-----|-----|------|-----|---------|--------|---------|----------|
+| **Vanilla** | 100% | 79.6 | 1871 | 86.9 | 78.4 | 68.4 | 58.1 | **100.0%** | **63 ms (1.00×)** |
+| **Retain ~75%** | | | | | | | | | |
+| HiPrune | 75% | 79.2 | 1827 | 86.4 | 78.9 | 66.9 | 58.2 | 99.2% | 81 ms (0.78×) |
+| HiPrune++ | 75%→82.6%† | 79.4 | 1867 | 86.4 | 78.4 | 67.2 | 58.6 | 99.7% | 83 ms (0.76×) |
+| HyDART | 75% | 79.3 | 1836 | 85.9 | 78.0 | 66.3 | 58.3 | 98.9% | 99 ms (0.64×) |
+| DART | 75% | 78.9 | 1767 | 85.1 | 77.7 | 67.0 | 58.8 | 98.3% | **73 ms (0.87×)** |
+| AnchorPrune | 75% | 79.7 | 1853 | 87.6 | 79.0 | 66.2 | 58.2 | 99.6% | 94 ms (0.68×) |
+| **Retain ~50%** | | | | | | | | | |
+| HiPrune | 50% | 76.4 | 1719 | 85.4 | 79.0 | 60.3 | 57.7 | 95.7% | 79 ms (0.80×) |
+| HiPrune++ | 50%→55.0%† | 77.1 | 1739 | 85.6 | 78.5 | 61.7 | 57.7 | 96.4% | 82 ms (0.77×) |
+| HyDART | 50% | 77.8 | 1766 | 84.1 | 79.5 | 63.5 | 58.1 | 97.2% | 93 ms (0.68×) |
+| DART | 50% | 75.5 | 1599 | 83.1 | 78.5 | 63.9 | 58.9 | 95.2% | 73 ms (0.87×) |
+| AnchorPrune | 50% | 77.9 | 1732 | 87.1 | 79.1 | 62.0 | 58.3 | 97.1% | 91 ms (0.70×) |
+| Checkered | 50.0% (eff) | 77.9 | 1712 | 86.6 | 79.4 | 56.8 | 58.3 | 95.6% | **67 ms (0.94×)** |
+| **Retain ~25%** | | | | | | | | | |
+| HiPrune | 25% | 71.5 | 1394 | 84.1 | 78.5 | 49.5 | 55.3 | 88.1% | 80 ms (0.79×) |
+| HiPrune++ | 25%→27.5%† | 72.8 | 1454 | 83.3 | 79.1 | 50.3 | 55.4 | 89.1% | 83 ms (0.77×) |
+| HyDART | 25% | 74.5 | 1577 | 84.1 | 79.1 | 54.3 | 57.7 | 92.4% | 87 ms (0.73×) |
+| DART | 25% | 68.4 | 1270 | 74.2 | 76.9 | 52.5 | 56.9 | 85.4% | 73 ms (0.87×) |
+| AnchorPrune | 25% | 74.3 | 1532 | 86.4 | 78.6 | 50.5 | 56.4 | 91.0% | 85 ms (0.75×) |
+| NPrune | 26.3% (eff) | 73.9 | 1501 | 84.3 | 78.5 | 39.5 | 58.1 | 88.0% | **68 ms (0.93×)** |
+| **Retain ~14%** | | | | | | | | | |
+| HiPrune | 14% | 67.5 | 1245 | 77.3 | 76.4 | 39.5 | 53.8 | 81.3% | 80 ms (0.79×) |
+| HiPrune++ | 14%→15.4%† | 68.9 | 1264 | 76.5 | 76.6 | 40.3 | 54.5 | 82.1% | 81 ms (0.79×) |
+| HyDART | 14% | 71.9 | 1321 | 82.3 | 76.9 | 45.7 | 56.1 | 86.2% | 84 ms (0.75×) |
+| DART | 14% | 59.1 | 914 | 69.4 | 73.9 | 35.8 | 54.2 | 73.8% | **73 ms (0.87×)** |
+| AnchorPrune | 14% | 70.0 | 1354 | 83.1 | 77.0 | 38.5 | 54.7 | 84.1% | 83 ms (0.77×) |
