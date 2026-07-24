@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { ModelKey, PruningMetadata } from "./lib/types";
 
@@ -218,6 +218,7 @@ export function OverlayCanvas({
   heatLayerIdx?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const [hover, setHover] = useState<{
     idx: number;
     xPct: number;
@@ -238,55 +239,79 @@ export function OverlayCanvas({
   );
   const heatmapOn = showHeatmap && canHeatmap;
 
-  useEffect(() => {
+  const paint = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const img = imgRef.current;
+    if (!canvas || !img || !img.complete) return;
     const [gridW, gridH] = metadata.grid;
-    // Render at a cell size that lands near 700px on the long edge.
     const cell = Math.max(6, Math.round(700 / Math.max(gridW, gridH)));
-    canvas.width = gridW * cell;
-    canvas.height = gridH * cell;
+    const nextW = gridW * cell;
+    const nextH = gridH * cell;
+    // Assigning width/height clears the bitmap — only do it when size changes
+    // so layer scrubbing does not flash a blank frame.
+    if (canvas.width !== nextW || canvas.height !== nextH) {
+      canvas.width = nextW;
+      canvas.height = nextH;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    drawBase(ctx, img, canvas.width, canvas.height, model);
 
-    const img = new Image();
-    img.onload = () => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      drawBase(ctx, img, canvas.width, canvas.height, model);
+    const box = (idx: number): [number, number] => [
+      (idx % gridW) * cell,
+      Math.floor(idx / gridW) * cell,
+    ];
 
-      const box = (idx: number): [number, number] => [
-        (idx % gridW) * cell,
-        Math.floor(idx / gridW) * cell,
-      ];
+    if (heatmapOn && heatScores) {
+      const norm = normalizeScores(heatScores);
+      for (let idx = 0; idx < norm.length; idx++) {
+        const [x, y] = box(idx);
+        ctx.fillStyle = heatFill(norm[idx]);
+        ctx.fillRect(x, y, cell, cell);
+      }
+    } else {
+      ctx.fillStyle = PRUNED_FILL;
+      for (const idx of metadata.pruned) {
+        const [x, y] = box(idx);
+        ctx.fillRect(x, y, cell, cell);
+      }
 
-      if (heatmapOn && heatScores) {
-        const norm = normalizeScores(heatScores);
-        for (let idx = 0; idx < norm.length; idx++) {
+      const cats: Array<[number[], string]> = keptCategories(metadata).map(
+        (c): [number[], string] => [c.indices, c.color]
+      );
+      ctx.lineWidth = 2;
+      for (const [indices, color] of cats) {
+        ctx.strokeStyle = color;
+        for (const idx of indices) {
           const [x, y] = box(idx);
-          ctx.fillStyle = heatFill(norm[idx]);
-          ctx.fillRect(x, y, cell, cell);
-        }
-      } else {
-        ctx.fillStyle = PRUNED_FILL;
-        for (const idx of metadata.pruned) {
-          const [x, y] = box(idx);
-          ctx.fillRect(x, y, cell, cell);
-        }
-
-        const cats: Array<[number[], string]> = keptCategories(metadata).map(
-          (c): [number[], string] => [c.indices, c.color]
-        );
-        ctx.lineWidth = 2;
-        for (const [indices, color] of cats) {
-          ctx.strokeStyle = color;
-          for (const idx of indices) {
-            const [x, y] = box(idx);
-            ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
-          }
+          ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
         }
       }
+    }
+  }, [metadata, model, heatmapOn, heatScores]);
+
+  // Load the source image once per URL; keep it for fast layer repaints.
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      imgRef.current = img;
+      paint();
+    };
+    img.onerror = () => {
+      if (!cancelled) imgRef.current = null;
     };
     img.src = imageUrl;
-  }, [imageUrl, metadata, model, heatmapOn, heatScores]);
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl, paint]);
+
+  // Repaint synchronously when overlay inputs change (no image reload).
+  useEffect(() => {
+    paint();
+  }, [paint]);
 
   const [gridW, gridH] = metadata.grid;
   const uniform = 1 / metadata.num_tokens;
