@@ -13,7 +13,7 @@ import type {
   ModelKey,
   Params,
 } from "./lib/types";
-import { DEFAULT_PARAMS, MODELS } from "./lib/types";
+import { DEFAULT_PARAMS } from "./lib/types";
 
 function useImageFileInput(onImage: (dataUrl: string) => void) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,7 +85,7 @@ function ImageReplaceTarget({
   src,
   alt,
   onImage,
-  className = "w-full max-h-[420px] h-auto object-contain",
+  className = "max-w-full max-h-[420px] w-auto h-auto",
 }: {
   src: string;
   alt: string;
@@ -101,7 +101,6 @@ function ImageReplaceTarget({
       role="button"
       tabIndex={0}
       aria-label="Replace image — click or drop a new file"
-      title="Click or drop to replace"
       onClick={openPicker}
       onKeyDown={(e) => e.key === "Enter" && openPicker()}
       onDragOver={(e) => {
@@ -197,24 +196,25 @@ function CompareStage({
 }) {
   const md = result?.metadata ?? null;
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [split, setSplit] = useState(false);
+  // Layout (2-col) follows `result`; motion enter is a separate flip.
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     if (!result) {
-      setSplit(false);
+      setEntered(false);
       setShowHeatmap(false);
       return;
     }
-    setSplit(false);
+    setEntered(false);
     const prefersReduced =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReduced) {
-      setSplit(true);
+      setEntered(true);
       return;
     }
     const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setSplit(true));
+      requestAnimationFrame(() => setEntered(true));
     });
     return () => cancelAnimationFrame(id);
   }, [result]);
@@ -222,11 +222,13 @@ function CompareStage({
   return (
     <div
       className={
-        "compare-stage px-2 " + (split && result ? "compare-stage--split" : "")
+        "compare-stage px-2 " +
+        (result ? "compare-stage--has-result " : "") +
+        (entered && result ? "compare-stage--entered" : "")
       }
     >
-      <figure className="compare-stage__original flex flex-col gap-2 min-w-0">
-        <figcaption className="demo-kicker text-fg-muted">
+      <figure className="compare-stage__original flex flex-col items-center gap-2 w-fit max-w-full min-w-0 mx-auto">
+        <figcaption className="demo-kicker text-fg-muted text-center w-full">
           {result ? "Original" : "\u00a0"}
         </figcaption>
         <ImageReplaceTarget
@@ -239,11 +241,11 @@ function CompareStage({
       {result && (
         <figure
           className={
-            "compare-stage__pruned flex flex-col gap-2 min-w-0 " +
-            (split ? "compare-stage__pruned--in" : "")
+            "compare-stage__pruned flex flex-col items-center gap-2 min-w-0 " +
+            (entered ? "compare-stage__pruned--in" : "")
           }
         >
-          <figcaption className="demo-kicker text-fg-muted">
+          <figcaption className="demo-kicker text-fg-muted text-center">
             {showHeatmap && md?.scores?.object_layer
               ? "Attention heatmap"
               : methodLabel(md?.method)}
@@ -375,7 +377,7 @@ function ResultsDetails({ result }: { result: InferResult }) {
 }
 
 export default function App() {
-  const [model, setModel] = useState<ModelKey>("qwen2_5_vl");
+  const [model] = useState<ModelKey>("gemma4");
   const [method, setMethod] = useState<MethodKey>("hiprune");
   const [params, setParams] = useState<Params>(DEFAULT_PARAMS);
   const [withBaseline, setWithBaseline] = useState(false);
@@ -442,6 +444,15 @@ export default function App() {
     setError(null);
   }, []);
 
+  // Keep the compare view frozen until the next Run — switching method
+  // would otherwise redraw the old overlay with a mismatched category
+  // set and look like an abrupt change.
+  const handleMethod = useCallback((m: MethodKey) => {
+    setMethod(m);
+    setResult(null);
+    setError(null);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Nav />
@@ -461,7 +472,7 @@ export default function App() {
               {imageUrl && (
                 <CompareStage
                   imageUrl={imageUrl}
-                  model={(MODELS.find((m) => m.key === model) ?? MODELS[0]).key}
+                  model={model}
                   result={result}
                   onReplaceImage={handleImage}
                 />
@@ -486,8 +497,7 @@ export default function App() {
                 busy={busy}
                 canRun={imageUrl != null && serverMatches}
                 withBaseline={withBaseline}
-                onModel={setModel}
-                onMethod={setMethod}
+                onMethod={handleMethod}
                 onParams={setParams}
                 onStartStop={handleStartStop}
                 onRun={handleRun}
