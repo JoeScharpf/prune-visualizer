@@ -85,7 +85,7 @@ function ImageReplaceTarget({
   src,
   alt,
   onImage,
-  className = "w-full max-h-[420px] h-auto object-contain border border-border",
+  className = "w-full max-h-[420px] h-auto object-contain",
 }: {
   src: string;
   alt: string;
@@ -173,7 +173,18 @@ function AnswerText({ text }: { text: string }) {
   );
 }
 
-function Results({
+function methodLabel(method: string | undefined): string {
+  if (method === "hydart") return "HyDART";
+  if (method === "hiprune_pp") return "HiPrune++";
+  if (method === "dart") return "DART";
+  if (method === "nprune") return "Lattice";
+  if (method === "checkered") return "Checkered";
+  if (method === "anchorprune") return "AnchorPrune";
+  return "HiPrune";
+}
+
+/** Preview → Original | pruned with slide + fade when a result arrives. */
+function CompareStage({
   imageUrl,
   model,
   result,
@@ -181,47 +192,61 @@ function Results({
 }: {
   imageUrl: string;
   model: ModelKey;
-  result: InferResult;
+  result: InferResult | null;
   onReplaceImage: (dataUrl: string) => void;
 }) {
-  const md = result.metadata;
+  const md = result?.metadata ?? null;
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const kept = md ? md.num_tokens - md.pruned.length : null;
-  // Actual pruned share from metadata (the kept count is rounded, so
-  // this can differ slightly from the requested retention slider).
-  const prunedPct = md ? (100 * md.pruned.length) / md.num_tokens : null;
+  const [split, setSplit] = useState(false);
 
-  const methodLabel =
-    md?.method === "hydart"
-      ? "HyDART"
-      : md?.method === "hiprune_pp"
-        ? "HiPrune++"
-        : md?.method === "dart"
-          ? "DART"
-          : md?.method === "nprune"
-            ? "Lattice"
-            : md?.method === "checkered"
-              ? "Checkered"
-              : md?.method === "anchorprune"
-                ? "AnchorPrune"
-                : "HiPrune";
+  useEffect(() => {
+    if (!result) {
+      setSplit(false);
+      setShowHeatmap(false);
+      return;
+    }
+    setSplit(false);
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) {
+      setSplit(true);
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setSplit(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [result]);
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-2">
-        <figure className="flex flex-col gap-2 min-w-0">
-          <figcaption className="demo-kicker text-fg-muted">Original</figcaption>
-          <ImageReplaceTarget
-            src={imageUrl}
-            alt="original upload"
-            onImage={onReplaceImage}
-          />
-        </figure>
-        <figure className="flex flex-col gap-2 min-w-0">
+    <div
+      className={
+        "compare-stage px-2 " + (split && result ? "compare-stage--split" : "")
+      }
+    >
+      <figure className="compare-stage__original flex flex-col gap-2 min-w-0">
+        <figcaption className="demo-kicker text-fg-muted">
+          {result ? "Original" : "\u00a0"}
+        </figcaption>
+        <ImageReplaceTarget
+          src={imageUrl}
+          alt={result ? "original upload" : "uploaded"}
+          onImage={onReplaceImage}
+        />
+      </figure>
+
+      {result && (
+        <figure
+          className={
+            "compare-stage__pruned flex flex-col gap-2 min-w-0 " +
+            (split ? "compare-stage__pruned--in" : "")
+          }
+        >
           <figcaption className="demo-kicker text-fg-muted">
             {showHeatmap && md?.scores?.object_layer
               ? "Attention heatmap"
-              : methodLabel}
+              : methodLabel(md?.method)}
             {md &&
               !showHeatmap &&
               ` — ${md.pruned.length}/${md.num_tokens} pruned, grid ${md.grid[0]}x${md.grid[1]}`}
@@ -252,8 +277,18 @@ function Results({
             </p>
           )}
         </figure>
-      </div>
+      )}
+    </div>
+  );
+}
 
+function ResultsDetails({ result }: { result: InferResult }) {
+  const md = result.metadata;
+  const kept = md ? md.num_tokens - md.pruned.length : null;
+  const prunedPct = md ? (100 * md.pruned.length) / md.num_tokens : null;
+
+  return (
+    <div className="flex flex-col gap-5">
       <div
         className="grid grid-cols-2 md:grid-cols-4 gap-4 border border-border bg-white p-4"
         style={{ borderRadius: "var(--r-1)" }}
@@ -423,11 +458,12 @@ export default function App() {
               }
             >
               {!imageUrl && <EmptyDropZone onImage={handleImage} />}
-              {imageUrl && !result && (
-                <ImageReplaceTarget
-                  src={imageUrl}
-                  alt="uploaded"
-                  onImage={handleImage}
+              {imageUrl && (
+                <CompareStage
+                  imageUrl={imageUrl}
+                  model={(MODELS.find((m) => m.key === model) ?? MODELS[0]).key}
+                  result={result}
+                  onReplaceImage={handleImage}
                 />
               )}
               {error && (
@@ -438,14 +474,7 @@ export default function App() {
                   {error}
                 </p>
               )}
-              {imageUrl && result && (
-                <Results
-                  imageUrl={imageUrl}
-                  model={(MODELS.find((m) => m.key === model) ?? MODELS[0]).key}
-                  result={result}
-                  onReplaceImage={handleImage}
-                />
-              )}
+              {result && <ResultsDetails result={result} />}
             </section>
 
             <div className="w-full xl:w-[380px] shrink-0 xl:sticky xl:top-[84px] xl:self-start">
