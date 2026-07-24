@@ -11,6 +11,47 @@ const PIVOT = "rgb(255,60,60)";
 const UNIFORM = "rgb(45,212,191)";
 const PRUNED_FILL = "rgba(0,0,0,0.82)";
 
+/** Map normalized score in [0,1] to a translucent heat color (cool→hot). */
+function heatFill(t: number): string {
+  const x = Math.min(1, Math.max(0, t));
+  // Dark blue → cyan → yellow → red
+  let r: number;
+  let g: number;
+  let b: number;
+  if (x < 0.33) {
+    const u = x / 0.33;
+    r = 30;
+    g = Math.round(40 + 140 * u);
+    b = Math.round(120 + 80 * u);
+  } else if (x < 0.66) {
+    const u = (x - 0.33) / 0.33;
+    r = Math.round(30 + 225 * u);
+    g = Math.round(180 + 40 * u);
+    b = Math.round(200 - 180 * u);
+  } else {
+    const u = (x - 0.66) / 0.34;
+    r = 255;
+    g = Math.round(220 - 180 * u);
+    b = Math.round(20 * (1 - u));
+  }
+  const a = 0.15 + 0.7 * x;
+  return `rgba(${r},${g},${b},${a.toFixed(3)})`;
+}
+
+function normalizeScores(scores: number[]): number[] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of scores) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const span = hi - lo;
+  if (!(span > 0) || !Number.isFinite(span)) {
+    return scores.map(() => 0);
+  }
+  return scores.map((v) => (v - lo) / span);
+}
+
 interface Category {
   name: string;
   indices: number[];
@@ -166,10 +207,12 @@ export function OverlayCanvas({
   imageUrl,
   metadata,
   model,
+  showHeatmap = false,
 }: {
   imageUrl: string;
   metadata: PruningMetadata;
   model: ModelKey;
+  showHeatmap?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hover, setHover] = useState<{
@@ -178,6 +221,11 @@ export function OverlayCanvas({
     yPct: number;
   } | null>(null);
   const cellIndex = useMemo(() => buildCellIndex(metadata), [metadata]);
+  const heatScores = metadata.scores?.object_layer;
+  const canHeatmap = Boolean(
+    heatScores && heatScores.length === metadata.num_tokens
+  );
+  const heatmapOn = showHeatmap && canHeatmap;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -199,26 +247,35 @@ export function OverlayCanvas({
         Math.floor(idx / gridW) * cell,
       ];
 
-      ctx.fillStyle = PRUNED_FILL;
-      for (const idx of metadata.pruned) {
-        const [x, y] = box(idx);
-        ctx.fillRect(x, y, cell, cell);
-      }
-
-      const cats: Array<[number[], string]> = keptCategories(metadata).map(
-        (c): [number[], string] => [c.indices, c.color]
-      );
-      ctx.lineWidth = 2;
-      for (const [indices, color] of cats) {
-        ctx.strokeStyle = color;
-        for (const idx of indices) {
+      if (heatmapOn && heatScores) {
+        const norm = normalizeScores(heatScores);
+        for (let idx = 0; idx < norm.length; idx++) {
           const [x, y] = box(idx);
-          ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
+          ctx.fillStyle = heatFill(norm[idx]);
+          ctx.fillRect(x, y, cell, cell);
+        }
+      } else {
+        ctx.fillStyle = PRUNED_FILL;
+        for (const idx of metadata.pruned) {
+          const [x, y] = box(idx);
+          ctx.fillRect(x, y, cell, cell);
+        }
+
+        const cats: Array<[number[], string]> = keptCategories(metadata).map(
+          (c): [number[], string] => [c.indices, c.color]
+        );
+        ctx.lineWidth = 2;
+        for (const [indices, color] of cats) {
+          ctx.strokeStyle = color;
+          for (const idx of indices) {
+            const [x, y] = box(idx);
+            ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
+          }
         }
       }
     };
     img.src = imageUrl;
-  }, [imageUrl, metadata, model]);
+  }, [imageUrl, metadata, model, heatmapOn, heatScores]);
 
   const [gridW, gridH] = metadata.grid;
   const uniform = 1 / metadata.num_tokens;
@@ -267,7 +324,7 @@ export function OverlayCanvas({
           }}
         />
       )}
-      {hover && info && (
+      {hover && (info || heatmapOn) && (
         <div
           className="absolute z-10 pointer-events-none bg-stone-950 text-white p-2.5 flex flex-col gap-1"
           style={{
@@ -281,15 +338,22 @@ export function OverlayCanvas({
           <span className="demo-label" style={{ color: "#a8a29e" }}>
             token {hover.idx} — row {hoverRow}, col {hoverCol}
           </span>
-          <span className="text-xs font-mono flex items-center gap-1.5">
-            <span
-              aria-hidden
-              className="inline-block shrink-0"
-              style={{ width: 8, height: 8, background: info.color, borderRadius: 1 }}
-            />
-            {info.category}
-            {info.rank != null && ` — rank ${info.rank}/${info.rankOf}`}
-          </span>
+          {!heatmapOn && info && (
+            <span className="text-xs font-mono flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block shrink-0"
+                style={{
+                  width: 8,
+                  height: 8,
+                  background: info.color,
+                  borderRadius: 1,
+                }}
+              />
+              {info.category}
+              {info.rank != null && ` — rank ${info.rank}/${info.rankOf}`}
+            </span>
+          )}
           {objScore != null && (
             <span className="text-xs font-mono" style={{ color: "#d6d3d1" }}>
               obj attn: {fmtScore(objScore, uniform)}
@@ -326,7 +390,50 @@ export function OverlayCanvas({
   );
 }
 
-export function OverlayLegend({ metadata }: { metadata: PruningMetadata }) {
+export function OverlayLegend({
+  metadata,
+  showHeatmap,
+  onToggleHeatmap,
+}: {
+  metadata: PruningMetadata;
+  showHeatmap: boolean;
+  onToggleHeatmap: (next: boolean) => void;
+}) {
+  const canHeatmap = Boolean(
+    metadata.scores?.object_layer &&
+      metadata.scores.object_layer.length === metadata.num_tokens
+  );
+
+  if (showHeatmap && canHeatmap) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <label className="inline-flex items-center gap-2 demo-label text-fg cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="accent-fg"
+            checked={showHeatmap}
+            onChange={(e) => onToggleHeatmap(e.target.checked)}
+          />
+          Heatmap
+        </label>
+        <span className="inline-flex items-center gap-1.5 demo-label text-fg-muted">
+          <span
+            aria-hidden
+            className="inline-block"
+            style={{
+              width: 48,
+              height: 8,
+              borderRadius: 1,
+              background:
+                "linear-gradient(90deg, rgba(30,40,120,0.3), rgba(255,180,40,0.75), rgba(255,40,20,0.85))",
+            }}
+          />
+          low → high attention
+        </span>
+      </div>
+    );
+  }
+
   const items: Array<[string, string, number]> = [
     ...keptCategories(metadata).map(
       (c): [string, string, number] => [c.name, c.color, c.indices.length]
@@ -335,8 +442,22 @@ export function OverlayLegend({ metadata }: { metadata: PruningMetadata }) {
   ];
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      {canHeatmap && (
+        <label className="inline-flex items-center gap-2 demo-label text-fg cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="accent-fg"
+            checked={false}
+            onChange={(e) => onToggleHeatmap(e.target.checked)}
+          />
+          Heatmap
+        </label>
+      )}
       {items.map(([name, color, count]) => (
-        <span key={name} className="inline-flex items-center gap-1.5 demo-label text-fg-muted">
+        <span
+          key={name}
+          className="inline-flex items-center gap-1.5 demo-label text-fg-muted"
+        >
           <span
             aria-hidden
             className="inline-block"

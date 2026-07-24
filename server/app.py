@@ -602,6 +602,9 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
     }
     if not pruned:
         return body
+    # Always ask for object-layer scores so the UI can toggle Categories
+    # vs Heatmap. Benches that hit vLLM directly omit this flag.
+    attn_params = {"return_vision_attention": 1.0}
     if req.method == "nprune":
         # Lattice ignores the retention slider: the keep count is the
         # exact uniform-lattice count, a function of the grid shape and
@@ -611,7 +614,10 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
         if req.stride > 1:
             body["token_pruning"] = 1.0 / (req.stride * req.stride)
             body["token_pruning_method"] = "nprune"
-            body["token_pruning_params"] = {"stride": req.stride}
+            body["token_pruning_params"] = {
+                "stride": req.stride,
+                **attn_params,
+            }
         return body
     if req.method == "checkered":
         # Checkered has no knobs at all: it keeps the cells where
@@ -620,6 +626,7 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
         # retention (ceil(N/2)/N) comes back in the metadata.
         body["token_pruning"] = 0.5
         body["token_pruning_method"] = "checkered"
+        body["token_pruning_params"] = dict(attn_params)
         return body
     if req.retention < 1.0:
         body["token_pruning"] = req.retention
@@ -630,6 +637,7 @@ def chat_completion_body(req: InferRequest, pruned: bool) -> dict[str, Any]:
             "beta": req.beta,
             "pivot_image": req.pivot_image,
             "pivot_text": req.pivot_text,
+            **attn_params,
         }
     return body
 

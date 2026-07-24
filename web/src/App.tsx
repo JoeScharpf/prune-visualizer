@@ -109,10 +109,27 @@ function Results({
   result: InferResult;
 }) {
   const md = result.metadata;
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const kept = md ? md.num_tokens - md.pruned.length : null;
   // Actual pruned share from metadata (the kept count is rounded, so
   // this can differ slightly from the requested retention slider).
   const prunedPct = md ? (100 * md.pruned.length) / md.num_tokens : null;
+
+  const methodLabel =
+    md?.method === "hydart"
+      ? "HyDART"
+      : md?.method === "hiprune_pp"
+        ? "HiPrune++"
+        : md?.method === "dart"
+          ? "DART"
+          : md?.method === "nprune"
+            ? "Lattice"
+            : md?.method === "checkered"
+              ? "Checkered"
+              : md?.method === "anchorprune"
+                ? "AnchorPrune"
+                : "HiPrune";
+
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -127,26 +144,30 @@ function Results({
         </figure>
         <figure className="flex flex-col gap-2">
           <figcaption className="demo-kicker text-fg-muted">
-            {md?.method === "hydart"
-              ? "HyDART"
-              : md?.method === "hiprune_pp"
-                ? "HiPrune++"
-                : md?.method === "dart"
-                  ? "DART"
-                  : md?.method === "nprune"
-                    ? "Lattice"
-                    : md?.method === "checkered"
-                      ? "Checkered"
-                      : md?.method === "anchorprune"
-                        ? "AnchorPrune"
-                        : "HiPrune"}
+            {showHeatmap && md?.scores?.object_layer
+              ? "Attention heatmap"
+              : methodLabel}
             {md &&
+              !showHeatmap &&
               ` — ${md.pruned.length}/${md.num_tokens} pruned, grid ${md.grid[0]}x${md.grid[1]}`}
+            {md &&
+              showHeatmap &&
+              md.scores?.object_layer &&
+              ` — object-layer attention, grid ${md.grid[0]}x${md.grid[1]}`}
           </figcaption>
           {md ? (
             <>
-              <OverlayCanvas imageUrl={imageUrl} metadata={md} model={model} />
-              <OverlayLegend metadata={md} />
+              <OverlayCanvas
+                imageUrl={imageUrl}
+                metadata={md}
+                model={model}
+                showHeatmap={showHeatmap}
+              />
+              <OverlayLegend
+                metadata={md}
+                showHeatmap={showHeatmap}
+                onToggleHeatmap={setShowHeatmap}
+              />
             </>
           ) : (
             <p className="text-sm text-fg-muted">
