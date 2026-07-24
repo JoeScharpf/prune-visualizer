@@ -61,10 +61,10 @@ function EmptyDropZone({ onImage }: { onImage: (dataUrl: string) => void }) {
         takeDrop(e);
       }}
       className={
-        "flex flex-col items-center justify-center gap-2 border border-dashed cursor-pointer transition-colors " +
+        "flex h-full min-h-[280px] w-full flex-col items-center justify-center gap-2 border border-dashed cursor-pointer transition-colors " +
         (dragging ? "border-accent bg-orange-50" : "border-stone-300 bg-white")
       }
-      style={{ borderRadius: "var(--r-1)", minHeight: 320 }}
+      style={{ borderRadius: "var(--r-1)" }}
     >
       <input
         ref={inputRef}
@@ -85,7 +85,7 @@ function ImageReplaceTarget({
   src,
   alt,
   onImage,
-  className = "w-full h-auto border border-border",
+  className = "w-full max-h-[420px] h-auto object-contain border border-border",
 }: {
   src: string;
   alt: string;
@@ -114,7 +114,7 @@ function ImageReplaceTarget({
         takeDrop(e);
       }}
       className={
-        "group relative block cursor-pointer overflow-hidden transition-shadow " +
+        "group relative inline-block max-w-full cursor-pointer overflow-hidden transition-shadow " +
         (dragging ? "ring-2 ring-orange-500 ring-offset-2" : "")
       }
       style={{ borderRadius: "var(--r-1)" }}
@@ -135,7 +135,7 @@ function ImageReplaceTarget({
       />
       <div
         className={
-          "pointer-events-none absolute inset-0 flex items-end justify-center p-3 transition-opacity " +
+          "pointer-events-none absolute inset-0 flex items-center justify-center p-3 transition-opacity " +
           (dragging
             ? "opacity-100 bg-black/35"
             : "opacity-0 group-hover:opacity-100 bg-black/25")
@@ -208,8 +208,8 @@ function Results({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <figure className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-2">
+        <figure className="flex flex-col gap-2 min-w-0">
           <figcaption className="demo-kicker text-fg-muted">Original</figcaption>
           <ImageReplaceTarget
             src={imageUrl}
@@ -217,7 +217,7 @@ function Results({
             onImage={onReplaceImage}
           />
         </figure>
-        <figure className="flex flex-col gap-2">
+        <figure className="flex flex-col gap-2 min-w-0">
           <figcaption className="demo-kicker text-fg-muted">
             {showHeatmap && md?.scores?.object_layer
               ? "Attention heatmap"
@@ -232,12 +232,14 @@ function Results({
           </figcaption>
           {md ? (
             <>
-              <OverlayCanvas
-                imageUrl={imageUrl}
-                metadata={md}
-                model={model}
-                showHeatmap={showHeatmap}
-              />
+              <div className="w-full max-h-[420px] flex justify-center overflow-hidden [&_canvas]:max-h-[420px] [&_canvas]:max-w-full [&_canvas]:h-auto [&_canvas]:w-auto">
+                <OverlayCanvas
+                  imageUrl={imageUrl}
+                  metadata={md}
+                  model={model}
+                  showHeatmap={showHeatmap}
+                />
+              </div>
               <OverlayLegend
                 metadata={md}
                 showHeatmap={showHeatmap}
@@ -413,15 +415,19 @@ export default function App() {
           <h1 className="h-display text-center mb-8" style={{ fontSize: 28 }}>
             Visual token pruning, side by side
           </h1>
-          <div className="flex flex-col xl:flex-row gap-8 items-start">
-            <section className="flex-1 w-full flex flex-col gap-5 min-w-0">
+          <div className="flex flex-col xl:flex-row gap-8 items-stretch">
+            <section
+              className={
+                "flex-1 w-full flex flex-col gap-5 min-w-0 " +
+                (!imageUrl ? "xl:min-h-0" : "")
+              }
+            >
               {!imageUrl && <EmptyDropZone onImage={handleImage} />}
               {imageUrl && !result && (
                 <ImageReplaceTarget
                   src={imageUrl}
                   alt="uploaded"
                   onImage={handleImage}
-                  className="w-full max-w-xl h-auto border border-border"
                 />
               )}
               {error && (
@@ -442,7 +448,7 @@ export default function App() {
               )}
             </section>
 
-            <div className="w-full xl:w-[380px] shrink-0 xl:sticky xl:top-[84px]">
+            <div className="w-full xl:w-[380px] shrink-0 xl:sticky xl:top-[84px] xl:self-start">
               <ControlPanel
                 model={model}
                 method={method}
