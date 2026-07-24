@@ -85,7 +85,7 @@ function ImageReplaceTarget({
   src,
   alt,
   onImage,
-  className = "w-full max-h-[420px] h-auto object-contain",
+  className = "max-w-full max-h-[420px] w-auto h-auto",
 }: {
   src: string;
   alt: string;
@@ -101,7 +101,6 @@ function ImageReplaceTarget({
       role="button"
       tabIndex={0}
       aria-label="Replace image — click or drop a new file"
-      title="Click or drop to replace"
       onClick={openPicker}
       onKeyDown={(e) => e.key === "Enter" && openPicker()}
       onDragOver={(e) => {
@@ -197,24 +196,25 @@ function CompareStage({
 }) {
   const md = result?.metadata ?? null;
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [split, setSplit] = useState(false);
+  // Layout (2-col) follows `result`; motion enter is a separate flip.
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     if (!result) {
-      setSplit(false);
+      setEntered(false);
       setShowHeatmap(false);
       return;
     }
-    setSplit(false);
+    setEntered(false);
     const prefersReduced =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReduced) {
-      setSplit(true);
+      setEntered(true);
       return;
     }
     const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setSplit(true));
+      requestAnimationFrame(() => setEntered(true));
     });
     return () => cancelAnimationFrame(id);
   }, [result]);
@@ -222,11 +222,13 @@ function CompareStage({
   return (
     <div
       className={
-        "compare-stage px-2 " + (split && result ? "compare-stage--split" : "")
+        "compare-stage px-2 " +
+        (result ? "compare-stage--has-result " : "") +
+        (entered && result ? "compare-stage--entered" : "")
       }
     >
-      <figure className="compare-stage__original flex flex-col gap-2 min-w-0">
-        <figcaption className="demo-kicker text-fg-muted">
+      <figure className="compare-stage__original flex flex-col items-center gap-2 w-fit max-w-full min-w-0 mx-auto">
+        <figcaption className="demo-kicker text-fg-muted text-center w-full">
           {result ? "Original" : "\u00a0"}
         </figcaption>
         <ImageReplaceTarget
@@ -239,11 +241,11 @@ function CompareStage({
       {result && (
         <figure
           className={
-            "compare-stage__pruned flex flex-col gap-2 min-w-0 " +
-            (split ? "compare-stage__pruned--in" : "")
+            "compare-stage__pruned flex flex-col items-center gap-2 min-w-0 " +
+            (entered ? "compare-stage__pruned--in" : "")
           }
         >
-          <figcaption className="demo-kicker text-fg-muted">
+          <figcaption className="demo-kicker text-fg-muted text-center">
             {showHeatmap && md?.scores?.object_layer
               ? "Attention heatmap"
               : methodLabel(md?.method)}
